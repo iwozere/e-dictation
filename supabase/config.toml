@@ -1,0 +1,46 @@
+# Supabase local development config — e-dictation
+# Full reference: https://supabase.com/docs/guides/local-development
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false   # set true in production
+
+[auth.external.google]
+enabled = false   # configure in Supabase Dashboard; set true after adding credentials
+
+[functions.on_dictation_save]
+verify_jwt = true  # requires a valid Supabase JWT; ownership is re-checked inside the function
