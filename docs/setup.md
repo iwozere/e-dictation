@@ -151,36 +151,23 @@ flutter run -d chrome \
   --dart-define=SUPABASE_ANON_KEY=eyJ...
 ```
 
-For convenience during development, create a `run_web.sh` (gitignored):
-```bash
-#!/bin/bash
-flutter run -d chrome \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=eyJ...
-```
+For convenience, use `run_web.bat` (gitignored, already in the repo root)
+or create your own script with the actual keys filled in.
 
 ---
 
 ## 11. Deploy Flutter Web to Vercel
 
-1. Push this repository to GitHub
-2. Import the repo on https://vercel.com
-3. Set the **Build Command**:
-   ```
-   flutter/bin/flutter build web --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
-   ```
-4. Set the **Output Directory**: `build/web`
-5. Add environment variables in Vercel's project settings:
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-6. Add this `vercel.json` to the project root for proper SPA routing:
-   ```json
-   {
-     "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-   }
-   ```
+Deployment is fully automated via GitHub Actions. Every push to `main` builds
+and deploys automatically.
 
-See also: https://docs.flutter.dev/deployment/web
+**One-time setup:**
+1. Run `vercel` in the project root to create the Vercel project
+2. Add 5 secrets to GitHub → Settings → Secrets → Actions
+3. Push to `main` — GitHub Actions handles the rest
+
+See **`docs/deployment.md`** for the complete step-by-step guide including
+all secret names and where to find each value.
 
 ---
 
