@@ -160,6 +160,10 @@ class _MoreMenu extends ConsumerWidget {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, size: 18),
       onSelected: (value) async {
+        if (value == 'preview') {
+          context.go('/play/${dictation.id}');
+          return;
+        }
         if (value == 'delete') {
           final confirmed = await showDialog<bool>(
             context: context,
@@ -186,6 +190,16 @@ class _MoreMenu extends ConsumerWidget {
         }
       },
       itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'preview',
+          child: Row(
+            children: [
+              Icon(Icons.play_circle_outline, size: 18),
+              SizedBox(width: 8),
+              Text('Preview'),
+            ],
+          ),
+        ),
         PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
     );
