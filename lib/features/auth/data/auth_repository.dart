@@ -154,7 +154,15 @@ class AuthRepository {
       );
     } catch (e) {
       _log.warning('_fetchProfile error for ${supabaseUser.id}', e);
-      return null;
+      // Return a basic user rather than null so a DB error doesn't look like
+      // a signed-out state (which would break anonymous student access).
+      return AppUser(
+        id: supabaseUser.id,
+        role: UserRole.student,
+        displayName: supabaseUser.userMetadata?['display_name'] as String?,
+        email: supabaseUser.email,
+        isAnonymous: supabaseUser.isAnonymous,
+      );
     }
   }
 

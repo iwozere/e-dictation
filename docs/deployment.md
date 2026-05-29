@@ -47,13 +47,18 @@ supabase migration up
 supabase functions serve on_dictation_save --env-file .env.local
 ```
 
-**`.env.local`** (gitignored — create manually):
+**`.env.local`** (gitignored — already in repo root):
 ```
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_TTS_API_KEY=AIza...
-SUPABASE_URL=http://localhost:54321
-SUPABASE_SERVICE_ROLE_KEY=<local service role key from supabase start output>
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_ANON_KEY=<anon key from supabase start output>
+SUPABASE_SERVICE_ROLE_KEY=<service role key from supabase start output>
+ANTHROPIC_API_KEY=sk-ant-...        ← your key, never commit
+GOOGLE_TTS_API_KEY=AIza...          ← your key, never commit
 ```
+
+> **Switching to production** — replace the three Supabase values with the
+> cloud project's URL, publishable key, and service role key from the Supabase
+> Dashboard (Project Settings → API). The API keys stay the same.
 
 ### Running the app locally
 

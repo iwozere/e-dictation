@@ -32,6 +32,9 @@ dependencies:
   uuid: ^4.5.1
   intl: ^0.20.2
 
+  flutter_web_plugins:
+    sdk: flutter
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

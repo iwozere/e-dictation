@@ -14,7 +14,6 @@
  *   8. Insert dictation_sentences rows with audio_url + duration_ms
  *
  * Environment variables required (set in Supabase Dashboard → Edge Functions → Secrets):
- *   ANTHROPIC_API_KEY
  *   GOOGLE_TTS_API_KEY
  *   SUPABASE_URL              (auto-injected by Supabase)
  *   SUPABASE_SERVICE_ROLE_KEY (auto-injected by Supabase)
@@ -22,7 +21,12 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const GOOGLE_TTS_API_KEY = Deno.env.get("GOOGLE_TTS_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -65,14 +69,17 @@ function getCallerUserId(req: Request): string | null {
 // Handler
 // ---------------------------------------------------------------------------
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
+    return new Response("Method Not Allowed", { status: 405, headers: CORS_HEADERS });
   }
 
   // 1. Extract caller identity (JWT was already verified by Supabase).
   const callerId = getCallerUserId(req);
   if (!callerId) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: CORS_HEADERS });
   }
 
   // 2. Parse request body.
@@ -84,7 +91,10 @@ Deno.serve(async (req: Request) => {
     language = body.language ?? "de";
     if (!dictationId) throw new Error("Missing dictation_id");
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 400 });
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 400,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -98,12 +108,12 @@ Deno.serve(async (req: Request) => {
     if (fetchError || !dictation) {
       return new Response(JSON.stringify({ error: "Dictation not found" }), {
         status: 404,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
     }
 
     if (dictation.owner_id !== callerId) {
-      return new Response("Forbidden", { status: 403 });
+      return new Response("Forbidden", { status: 403, headers: CORS_HEADERS });
     }
 
     // 4. Server-side word-count guard — mirrors AppConfig.maxDictationWords.
@@ -115,7 +125,7 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({
           error: `Dictation exceeds ${MAX_WORDS}-word limit (${wordCount} words).`,
         }),
-        { status: 422, headers: { "Content-Type": "application/json" } }
+        { status: 422, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
       );
     }
 
@@ -125,8 +135,8 @@ Deno.serve(async (req: Request) => {
       .update({ tts_status: "processing", tts_error: null })
       .eq("id", dictationId);
 
-    // 5. Split into sentences using Claude.
-    const sentences = await splitIntoSentences(dictation.full_text, language);
+    // 5. Split into sentences.
+    const sentences = splitIntoSentences(dictation.full_text, language);
     if (sentences.length === 0) {
       throw new Error("Sentence splitting returned empty array");
     }
@@ -188,7 +198,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ success: true, sentence_count: sentences.length }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error("[on_dictation_save] Error:", e);
@@ -204,68 +214,63 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
     );
   }
 });
 
 // ---------------------------------------------------------------------------
-// Claude: sentence splitting
+// Sentence splitting — regex-based, no external API required.
 //
-// The task instructions live in the `system` parameter (not the user message)
-// so that dictation text cannot override them via prompt injection.
+// Strategy:
+//   1. Protect decimal numbers and known abbreviations by swapping their
+//      periods for a sentinel character (U+0000).
+//   2. Split on sentence-ending punctuation [.!?] followed by optional
+//      closing quotes/brackets, whitespace, and an uppercase letter.
+//   3. Restore sentinels back to periods.
 // ---------------------------------------------------------------------------
-async function splitIntoSentences(
-  text: string,
-  language: string
-): Promise<string[]> {
-  const languageLabel = language === "de"
-    ? "German"
-    : language === "fr"
-    ? "French"
-    : "English";
+function splitIntoSentences(text: string, _language: string): string[] {
+  const SENTINEL = " ";
+  const s0 = text.trim();
+  if (!s0) return [];
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 2048,
-      // System prompt holds the instructions — isolated from user-controlled text
-      // to prevent prompt injection via the dictation content.
-      system:
-        "You are a sentence splitter for dictation exercises. " +
-        "Split the provided text into individual sentences suitable for dictation. " +
-        "Preserve all punctuation exactly as written. " +
-        "Handle abbreviations correctly (e.g. 'Dr.', 'z.B.', 'bzw.', 'etc.'). " +
-        "Return ONLY a JSON array of strings. No markdown, no code fences, no explanation.",
-      messages: [
-        {
-          role: "user",
-          content: `Language: ${languageLabel}\n\nText:\n${text}`,
-        },
-      ],
-    }),
-  });
+  let s = s0;
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Claude API error ${response.status}: ${err}`);
+  // Protect decimal / ordinal numbers: "3.14", "§ 2.1"
+  s = s.replace(/(\d)\.(\d)/g, `$1${SENTINEL}$2`);
+
+  // Protect multi-component German abbreviations (z.B., d.h., u.a., o.ä., z.T.)
+  s = s.replace(/\bz\.\s*B\./gi, `z${SENTINEL}B${SENTINEL}`);
+  s = s.replace(/\bd\.\s*h\./gi, `d${SENTINEL}h${SENTINEL}`);
+  s = s.replace(/\bu\.\s*a\./gi, `u${SENTINEL}a${SENTINEL}`);
+  s = s.replace(/\bu\.\s*ä\./gi, `u${SENTINEL}ä${SENTINEL}`);
+  s = s.replace(/\bo\.\s*ä\./gi, `o${SENTINEL}ä${SENTINEL}`);
+  s = s.replace(/\bz\.\s*T\./gi, `z${SENTINEL}T${SENTINEL}`);
+
+  // Protect single-word abbreviations (German, English, French)
+  const ABBREVS = [
+    "Dr", "Prof", "Hr", "Fr", "Sr", "Jr", "St", "Nr", "Str", "Dipl", "Ing", "Abs",
+    "bzw", "ggf", "evtl", "usw", "etc", "inkl", "exkl", "ca", "vgl", "bes",
+    "Mr", "Mrs", "Ms", "vs",
+    "Mme", "Mlle",
+  ];
+  for (const abbr of ABBREVS) {
+    s = s.replace(new RegExp(`\\b${abbr}\\.`, "g"), `${abbr}${SENTINEL}`);
   }
 
-  const data = await response.json();
-  const content = data.content?.[0]?.text ?? "";
+  // Split on: [.!?] + optional closing punctuation + whitespace + uppercase letter.
+  // Lookbehind keeps the terminal punctuation attached to the preceding sentence.
+  const parts = s.split(
+    /(?<=[.!?][»"')\]]*)\s+(?=[A-ZÄÖÜÀ-ɏ])/u
+  );
 
-  try {
-    const sentences = JSON.parse(content) as string[];
-    return sentences.filter((s) => s.trim().length > 0);
-  } catch {
-    throw new Error(`Failed to parse sentence array from Claude: ${content}`);
-  }
+  // Also treat blank lines as sentence boundaries.
+  const sentences = parts
+    .flatMap((p) => p.split(/\n{2,}/))
+    .map((p) => p.replace(new RegExp(SENTINEL, "g"), ".").trim())
+    .filter((p) => p.length > 0);
+
+  return sentences.length > 0 ? sentences : [s0];
 }
 
 // ---------------------------------------------------------------------------

@@ -26,6 +26,8 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
+  bool _signingIn = false;
+
   /// The dictation ID whose sentences were last loaded into the player.
   String? _loadedDictationId;
 
@@ -153,8 +155,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Future<void> _ensureAnonymousSession() async {
+    if (_signingIn) return;
+    _signingIn = true;
     final repo = ref.read(authRepositoryProvider);
     await repo.signInAnonymously();
+    _signingIn = false;
   }
 
   String _errorMessage(Object e) {
