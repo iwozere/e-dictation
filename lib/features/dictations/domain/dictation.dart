@@ -15,6 +15,7 @@ class Dictation {
     this.sentences = const [],
     this.ttsStatus = TtsStatus.pending,
     this.ttsError,
+    this.allowStudentControls = true,
   });
 
   final String id;
@@ -34,6 +35,7 @@ class Dictation {
 
   final TtsStatus ttsStatus;
   final String? ttsError;
+  final bool allowStudentControls;
 
   /// Shareable URL for students.
   String? get shareUrl => shareCode != null ? '/d/$shareCode' : null;
@@ -62,6 +64,7 @@ class Dictation {
               ..sort((a, b) => a.position.compareTo(b.position)),
         ttsStatus: TtsStatus.fromString(json['tts_status'] as String? ?? 'pending'),
         ttsError: json['tts_error'] as String?,
+        allowStudentControls: (json['allow_student_controls'] as bool?) ?? true,
       );
 
   Map<String, dynamic> toInsertJson() => {
@@ -84,6 +87,7 @@ class Dictation {
     List<DictationSentence>? sentences,
     TtsStatus? ttsStatus,
     String? ttsError,
+    bool? allowStudentControls,
   }) =>
       Dictation(
         id: id,
@@ -100,6 +104,7 @@ class Dictation {
         sentences: sentences ?? this.sentences,
         ttsStatus: ttsStatus ?? this.ttsStatus,
         ttsError: ttsError ?? this.ttsError,
+        allowStudentControls: allowStudentControls ?? this.allowStudentControls,
       );
 }
 

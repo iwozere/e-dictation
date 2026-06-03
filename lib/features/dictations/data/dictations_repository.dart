@@ -106,6 +106,7 @@ class DictationsRepository {
     DictationDifficulty? difficulty,
     String? classId,
     int defaultPauseSecs = 5,
+    bool allowStudentControls = true,
   }) async {
     try {
       final row = await _client
@@ -118,6 +119,7 @@ class DictationsRepository {
             if (difficulty != null) 'difficulty': difficulty.value,
             'full_text': fullText,
             'default_pause_secs': defaultPauseSecs,
+            'allow_student_controls': allowStudentControls,
           })
           .select()
           .single();

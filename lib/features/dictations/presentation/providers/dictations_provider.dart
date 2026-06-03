@@ -68,6 +68,7 @@ class DictationMutationNotifier extends Notifier<AsyncValue<void>> {
     DictationDifficulty? difficulty,
     String? classId,
     int defaultPauseSecs = 5,
+    bool allowStudentControls = true,
   }) async {
     state = const AsyncLoading();
     final user = ref.read(currentUserProvider);
@@ -84,6 +85,7 @@ class DictationMutationNotifier extends Notifier<AsyncValue<void>> {
           difficulty: difficulty,
           classId: classId,
           defaultPauseSecs: defaultPauseSecs,
+          allowStudentControls: allowStudentControls,
         );
 
     state = const AsyncData(null);

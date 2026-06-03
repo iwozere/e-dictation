@@ -27,6 +27,7 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
   DictationDifficulty? _difficulty;
   String? _classId;
   int _pauseSecs = 5;
+  bool _allowStudentControls = true;
   bool _saving = false;
 
   @override
@@ -57,6 +58,7 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
           difficulty: _difficulty,
           classId: _classId,
           defaultPauseSecs: _pauseSecs,
+          allowStudentControls: _allowStudentControls,
         );
 
     if (!mounted) return;
@@ -202,6 +204,18 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  // Student controls toggle
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Allow student controls',
+                        style: TextStyle(fontWeight: FontWeight.w500)),
+                    subtitle: const Text(
+                        'Students can pause, replay and skip sentences'),
+                    value: _allowStudentControls,
+                    onChanged: (v) => setState(() => _allowStudentControls = v),
+                  ),
+                  const SizedBox(height: 8),
 
                   // Dictation text
                   Stack(
