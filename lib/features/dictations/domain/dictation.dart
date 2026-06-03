@@ -55,10 +55,11 @@ class Dictation {
         defaultPauseSecs: (json['default_pause_secs'] as int?) ?? 5,
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
-        sentences: (json['dictation_sentences'] as List<dynamic>?)
-                ?.map((s) => DictationSentence.fromJson(s as Map<String, dynamic>))
-                .toList() ??
-            [],
+        sentences: ((json['dictation_sentences'] as List<dynamic>?)
+                    ?.map((s) => DictationSentence.fromJson(s as Map<String, dynamic>))
+                    .toList() ??
+                [])
+              ..sort((a, b) => a.position.compareTo(b.position)),
         ttsStatus: TtsStatus.fromString(json['tts_status'] as String? ?? 'pending'),
         ttsError: json['tts_error'] as String?,
       );
