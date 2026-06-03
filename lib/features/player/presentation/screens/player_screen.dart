@@ -283,8 +283,13 @@ class _TypingPanel extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
+                // Override the global theme's Size(double.infinity, 48) so
+                // the button doesn't consume all row width, leaving 0px for
+                // the TextField.
+                minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 11),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(isLast ? 'Finish' : 'Next →'),
             ),

@@ -113,6 +113,10 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
     } else {
       _pausedBeforeIndex = null;
       await _player.pause();
+      // The audio may have completed exactly during the await above, causing
+      // _onSentenceCompleted to fire and create a new timer.  Cancel it now
+      // so we don't auto-advance while the user expects the player to be paused.
+      _pauseTimer?.cancel();
     }
     state = state.copyWith(status: PlaybackStatus.paused);
   }
@@ -224,7 +228,13 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
     state = state.copyWith(status: PlaybackStatus.pauseBetweenSentences);
     _pauseTimer = Timer(
       Duration(seconds: state.pauseDurationSecs),
-      () => _playSentenceAt(currentIndex + 1),
+      () {
+        // Only auto-advance if we're still in the between-sentence state.
+        // If the user paused during this window the state will be 'paused'.
+        if (state.status == PlaybackStatus.pauseBetweenSentences) {
+          _playSentenceAt(currentIndex + 1);
+        }
+      },
     );
   }
 }
