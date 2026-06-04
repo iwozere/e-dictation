@@ -6,6 +6,7 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
 import '../../../classes/presentation/providers/classes_provider.dart';
+import '../../../../shared/widgets/ocr_image_button.dart';
 import '../../domain/dictation.dart';
 import '../providers/dictations_provider.dart';
 
@@ -304,7 +305,21 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                       ),
                       const SizedBox(height: 8),
 
-                      // Dictation text
+                      // Dictation text label + scan button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Dictation text',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          OcrImageButton(
+                            onTextExtracted: (text) =>
+                                setState(() => _textCtrl.text = text),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
                       Stack(
                         alignment: Alignment.bottomRight,
                         children: [
@@ -312,8 +327,7 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                             controller: _textCtrl,
                             maxLines: 12,
                             decoration: const InputDecoration(
-                              labelText: 'Dictation text',
-                              alignLabelWithHint: true,
+                              hintText: 'Paste or type the dictation text here…',
                             ),
                             onChanged: (_) => setState(() {}),
                             validator: (v) =>

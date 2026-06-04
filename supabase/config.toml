@@ -44,3 +44,6 @@ enabled = false   # configure in Supabase Dashboard; set true after adding crede
 
 [functions.on_dictation_save]
 verify_jwt = true  # requires a valid Supabase JWT; ownership is re-checked inside the function
+
+[functions.ocr_image]
+verify_jwt = true  # requires a valid Supabase JWT (teacher must be signed in)
