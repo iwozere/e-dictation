@@ -69,19 +69,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // Must be called unconditionally before any early returns.
     ref.listen<PlaybackStateModel>(playbackNotifierProvider, (prev, next) {
       if (prev == null) return;
-      // Index changed (audio auto-advanced) → save current answer, clear field.
+
+      // Student typing mode: when a sentence's audio finishes and the
+      // between-sentence countdown starts, immediately cancel it and seek
+      // back to the sentence start.  The student advances manually with
+      // "Next →" / "Finish"; pressing Play replays the current sentence.
+      if (_isStudentView &&
+          !_showResults &&
+          prev.status != PlaybackStatus.pauseBetweenSentences &&
+          next.status == PlaybackStatus.pauseBetweenSentences) {
+        ref.read(playbackNotifierProvider.notifier).waitForInput();
+        return;
+      }
+
+      // Index changed (student or teacher navigated) → save draft, clear field.
       if (prev.currentIndex != next.currentIndex) {
         _saveAnswer(prev.currentIndex);
         _answerCtrl.clear();
         setState(() {});
-      }
-      // Playback finished naturally → show results.
-      if (_isStudentView &&
-          !_showResults &&
-          prev.status != PlaybackStatus.completed &&
-          next.status == PlaybackStatus.completed) {
-        _saveAnswer(next.currentIndex);
-        setState(() => _showResults = true);
       }
     });
 

@@ -104,6 +104,18 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
     await _playSentenceAt(state.currentIndex);
   }
 
+  /// Used in student typing mode: cancels the between-sentence auto-advance
+  /// and seeks the current sentence back to its start so pressing Play
+  /// replays it rather than jumping ahead.
+  Future<void> waitForInput() async {
+    _pauseTimer?.cancel();
+    _pausedBeforeIndex = null;
+    try {
+      await _player.seek(Duration.zero);
+    } catch (_) {}
+    state = state.copyWith(status: PlaybackStatus.paused);
+  }
+
   Future<void> pause() async {
     _pauseTimer?.cancel();
     if (state.status == PlaybackStatus.pauseBetweenSentences) {
