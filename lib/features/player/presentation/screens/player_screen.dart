@@ -413,22 +413,20 @@ class _ResultsPanel extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (!isCorrect) ...[
-                  const SizedBox(height: 8),
-                  if (isBlank)
-                    Text(
-                      sentence.text,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.success,
-                          fontStyle: FontStyle.italic),
-                    )
-                  else
-                    _DiffDisplay(
-                      studentText: answer,
-                      expectedText: sentence.text,
-                    ),
-                ],
+                const SizedBox(height: 8),
+                if (isCorrect || isBlank)
+                  Text(
+                    sentence.text,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.success,
+                        fontStyle: FontStyle.italic),
+                  )
+                else
+                  _DiffDisplay(
+                    studentText: answer,
+                    expectedText: sentence.text,
+                  ),
               ],
             ),
           );
