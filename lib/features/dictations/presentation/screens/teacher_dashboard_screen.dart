@@ -109,25 +109,11 @@ class _DictationGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 900
-            ? 3
-            : constraints.maxWidth > 600
-                ? 2
-                : 1;
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.4,
-          ),
-          itemCount: dictations.length,
-          itemBuilder: (_, i) => DictationCard(dictation: dictations[i]),
-        );
-      },
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: dictations.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) => DictationCard(dictation: dictations[i]),
     );
   }
 }

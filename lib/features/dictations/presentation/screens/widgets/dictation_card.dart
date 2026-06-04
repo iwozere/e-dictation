@@ -14,101 +14,99 @@ class DictationCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
+      margin: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => context.go('/teacher/dictations/${dictation.id}'),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.fromLTRB(14, 6, 2, 6),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      dictation.title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  _MoreMenu(dictation: dictation),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                dictation.fullText,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
-                  fontStyle: FontStyle.italic,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _Chip(
-                    label: dictation.language.label,
-                    color: AppColors.primary,
-                  ),
-                  if (dictation.difficulty != null) ...[
-                    const SizedBox(width: 6),
-                    _Chip(
-                      label: dictation.difficulty!.label,
-                      color: _difficultyColor(dictation.difficulty!),
-                    ),
-                  ],
-                  const Spacer(),
-                  _TtsStatusIcon(dictation: dictation),
-                ],
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  Text(
-                    '${dictation.sentences.length} sentences · ${dictation.wordCount} words',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: Colors.grey[600]),
-                  ),
-                  if (dictation.shareCode != null) ...[
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () {
-                        Clipboard.setData(ClipboardData(
-                            text: dictation.shareCode!));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Share code copied!')),
-                        );
-                      },
-                      child: Row(
-                        children: [
-                          const Icon(Icons.copy, size: 14,
-                              color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Text(
-                            dictation.shareCode!,
+              // Left: title + preview + chips
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            dictation.title,
                             style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              letterSpacing: 1,
+                                fontWeight: FontWeight.w700, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        _Chip(
+                          label: dictation.language.label,
+                          color: AppColors.primary,
+                        ),
+                        if (dictation.difficulty != null) ...[
+                          const SizedBox(width: 4),
+                          _Chip(
+                            label: dictation.difficulty!.label,
+                            color: _difficultyColor(dictation.difficulty!),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 1),
+                    // Preview + stats row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            dictation.fullText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${dictation.sentences.length}s · ${dictation.wordCount}w',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey[500]),
+                        ),
+                        const SizedBox(width: 6),
+                        _TtsStatusIcon(dictation: dictation),
+                        if (dictation.shareCode != null) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(
+                                  text: dictation.shareCode!));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Share code copied!')),
+                              );
+                            },
+                            child: Text(
+                              dictation.shareCode!,
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                letterSpacing: 1,
+                              ),
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
                   ],
-                ],
+                ),
               ),
+              // Right: more menu
+              _MoreMenu(dictation: dictation),
             ],
           ),
         ),
@@ -171,6 +169,8 @@ class _MoreMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, size: 18),
+      padding: EdgeInsets.zero,
+      splashRadius: 18,
       onSelected: (value) async {
         if (value == 'edit') {
           context.go('/teacher/dictations/${dictation.id}/edit');
