@@ -84,7 +84,7 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
 
   Future<void> play() async {
     if (state.sentences.isEmpty) return;
-    if (state.status == PlaybackStatus.completed) await _jumpTo(0);
+    _pauseTimer?.cancel();
 
     if (state.status == PlaybackStatus.paused) {
       if (_pausedBeforeIndex != null) {
@@ -200,6 +200,7 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
     try {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(sentence.audioUrl!)));
       await _player.setSpeed(state.speed);
+      await _player.seek(Duration.zero);
       await _player.play();
       state = state.copyWith(status: PlaybackStatus.playing);
     } catch (e) {
@@ -223,6 +224,13 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
   }
 
   void _onSentenceCompleted() {
+    // Ignore completion events that arrive while we're loading a new source
+    // (e.g. the old source fires completed as it's being replaced on web).
+    if (state.status == PlaybackStatus.loading ||
+        state.status == PlaybackStatus.idle) {
+      return;
+    }
+
     final currentIndex = state.currentIndex;
 
     // Reveal sentence text after it has played.

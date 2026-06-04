@@ -41,7 +41,6 @@ class PlaybackControls extends ConsumerWidget {
         _PlayPauseButton(
           isPlaying: isPlaying,
           isLoading: isLoading,
-          isCompleted: status == PlaybackStatus.completed,
           onTap: () {
             if (isPlaying) {
               notifier.pause();
@@ -79,13 +78,11 @@ class _PlayPauseButton extends StatelessWidget {
   const _PlayPauseButton({
     required this.isPlaying,
     required this.isLoading,
-    required this.isCompleted,
     required this.onTap,
   });
 
   final bool isPlaying;
   final bool isLoading;
-  final bool isCompleted;
   final VoidCallback onTap;
 
   @override
@@ -115,11 +112,9 @@ class _PlayPauseButton extends StatelessWidget {
                 ),
               )
             : Icon(
-                isCompleted
-                    ? Icons.replay_rounded
-                    : isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
+                isPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
                 color: Colors.white,
                 size: 36,
               ),
