@@ -140,21 +140,35 @@ class DictationsRepository {
     required String id,
     String? title,
     DictationDifficulty? difficulty,
+    bool clearDifficulty = false,
     String? classId,
+    bool clearClass = false,
     int? defaultPauseSecs,
     String? fullText,
     DictationLanguage? language,
+    bool? allowStudentControls,
   }) async {
     try {
       final updates = <String, dynamic>{
         'updated_at': DateTime.now().toIso8601String(),
         if (title != null) 'title': title,
-        if (difficulty != null) 'difficulty': difficulty.value,
-        if (classId != null) 'class_id': classId,
         if (defaultPauseSecs != null) 'default_pause_secs': defaultPauseSecs,
         if (fullText != null) 'full_text': fullText,
         if (language != null) 'language': language.code,
+        if (allowStudentControls != null) 'allow_student_controls': allowStudentControls,
       };
+      // Nullable fields need imperative assignment so we can distinguish
+      // "clear to null" from "don't change".
+      if (clearDifficulty) {
+        updates['difficulty'] = null;
+      } else if (difficulty != null) {
+        updates['difficulty'] = difficulty.value;
+      }
+      if (clearClass) {
+        updates['class_id'] = null;
+      } else if (classId != null) {
+        updates['class_id'] = classId;
+      }
 
       final row = await _client
           .from('dictations')

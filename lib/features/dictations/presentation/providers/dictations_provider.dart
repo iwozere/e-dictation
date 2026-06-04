@@ -94,6 +94,35 @@ class DictationMutationNotifier extends Notifier<AsyncValue<void>> {
     return result;
   }
 
+  Future<(Dictation?, DictationFailure?)> update({
+    required String id,
+    required String title,
+    required DictationLanguage language,
+    required String fullText,
+    required DictationDifficulty? difficulty,
+    required String? classId,
+    required int defaultPauseSecs,
+    required bool allowStudentControls,
+  }) async {
+    state = const AsyncLoading();
+    final result = await ref.read(dictationsRepositoryProvider).updateDictation(
+          id: id,
+          title: title,
+          language: language,
+          fullText: fullText,
+          difficulty: difficulty,
+          clearDifficulty: difficulty == null,
+          classId: classId,
+          clearClass: classId == null,
+          defaultPauseSecs: defaultPauseSecs,
+          allowStudentControls: allowStudentControls,
+        );
+    state = const AsyncData(null);
+    ref.invalidate(teacherDictationsProvider);
+    ref.invalidate(dictationByIdProvider(id));
+    return result;
+  }
+
   Future<DictationFailure?> delete(String id) async {
     state = const AsyncLoading();
     final failure = await ref.read(dictationsRepositoryProvider).deleteDictation(id);

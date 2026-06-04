@@ -122,7 +122,7 @@ class _DictationGrid extends StatelessWidget {
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.8,
+            childAspectRatio: 1.4,
           ),
           itemCount: dictations.length,
           itemBuilder: (_, i) => DictationCard(dictation: dictations[i]),

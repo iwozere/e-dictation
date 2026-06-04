@@ -38,6 +38,18 @@ class DictationCard extends ConsumerWidget {
                   _MoreMenu(dictation: dictation),
                 ],
               ),
+              const SizedBox(height: 4),
+              Text(
+                dictation.fullText,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
+                  height: 1.4,
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -160,6 +172,10 @@ class _MoreMenu extends ConsumerWidget {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, size: 18),
       onSelected: (value) async {
+        if (value == 'edit') {
+          context.go('/teacher/dictations/${dictation.id}/edit');
+          return;
+        }
         if (value == 'preview') {
           context.go('/play/${dictation.id}');
           return;
@@ -191,14 +207,20 @@ class _MoreMenu extends ConsumerWidget {
       },
       itemBuilder: (_) => const [
         PopupMenuItem(
+          value: 'edit',
+          child: Row(children: [
+            Icon(Icons.edit_outlined, size: 18),
+            SizedBox(width: 8),
+            Text('Edit'),
+          ]),
+        ),
+        PopupMenuItem(
           value: 'preview',
-          child: Row(
-            children: [
-              Icon(Icons.play_circle_outline, size: 18),
-              SizedBox(width: 8),
-              Text('Preview'),
-            ],
-          ),
+          child: Row(children: [
+            Icon(Icons.play_circle_outline, size: 18),
+            SizedBox(width: 8),
+            Text('Preview'),
+          ]),
         ),
         PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
