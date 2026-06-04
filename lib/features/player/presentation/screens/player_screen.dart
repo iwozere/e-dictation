@@ -1,11 +1,15 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/pin_hash.dart';
 import '../../../../shared/widgets/error_view.dart';
+import '../../../attempts/presentation/providers/attempts_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../dictations/domain/dictation.dart';
 import '../../../dictations/presentation/providers/dictations_provider.dart';
@@ -37,13 +41,62 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   final _answerCtrl = TextEditingController();
   final Map<int, String> _answers = {};
   bool _showResults = false;
+  bool _savingAttempt = false;
+
+  // Identity (student view only)
+  bool _identityConfirmed = false;
+  String? _studentName;
+  String? _studentPinHash;
+
+  // Kept current so _saveAttempt can access it without threading dictation
+  // through every call site.
+  Dictation? _currentDictation;
 
   bool get _isStudentView => widget.shareCode != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isStudentView) {
+      _loadIdentityFromPrefs();
+    } else {
+      _identityConfirmed = true;
+    }
+  }
 
   @override
   void dispose() {
     _answerCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadIdentityFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _studentName = prefs.getString('student_name');
+      _studentPinHash = prefs.getString('student_pin_hash');
+    });
+  }
+
+  Future<void> _confirmIdentity(String? name, String? pinHash) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (name != null && name.isNotEmpty) {
+      await prefs.setString('student_name', name);
+    } else {
+      await prefs.remove('student_name');
+    }
+    if (pinHash != null) {
+      await prefs.setString('student_pin_hash', pinHash);
+    } else {
+      await prefs.remove('student_pin_hash');
+    }
+    if (!mounted) return;
+    setState(() {
+      _studentName = name?.isEmpty == true ? null : name;
+      _studentPinHash = pinHash;
+      _identityConfirmed = true;
+    });
   }
 
   void _saveAnswer(int index) {
@@ -56,10 +109,33 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _answerCtrl.clear();
     final isLast = playback.currentIndex >= playback.sentences.length - 1;
     if (isLast) {
+      _saveAttempt();
       setState(() => _showResults = true);
     } else {
       ref.read(playbackNotifierProvider.notifier).next();
     }
+  }
+
+  void _saveAttempt() {
+    if (_savingAttempt || _currentDictation == null) return;
+    _savingAttempt = true;
+
+    final sentences = _currentDictation!.sentences;
+    final scoreCorrect = sentences.asMap().entries.where((e) {
+      final answer = _answers[e.key];
+      if (answer == null || answer.isEmpty) return false;
+      return _normalize(answer) == _normalize(e.value.text);
+    }).length;
+
+    ref.read(attemptsRepositoryProvider).saveAttempt(
+      dictationId: _currentDictation!.id,
+      studentName: _studentName,
+      studentPinHash: _studentPinHash,
+      answers: Map.of(_answers),
+      scoreCorrect: scoreCorrect,
+      scoreTotal: sentences.length,
+    );
+    // Fire-and-forget; errors are logged in the repository.
   }
 
   @override
@@ -111,6 +187,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         body: ErrorView(message: _errorMessage(e)),
       ),
       data: (dictation) {
+        _currentDictation = dictation;
+
+        // Show identity panel before loading the player for student view.
+        if (_isStudentView && !_identityConfirmed) {
+          return _IdentityPanel(
+            dictationTitle: dictation.title,
+            initialName: _studentName,
+            onConfirm: _confirmIdentity,
+          );
+        }
+
         final sentencesWithAudio =
             dictation.sentences.where((s) => s.hasAudio).length;
         if (_loadedDictationId != dictation.id ||
@@ -241,6 +328,127 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 }
 
 // ---------------------------------------------------------------------------
+// Identity panel
+// ---------------------------------------------------------------------------
+
+class _IdentityPanel extends StatefulWidget {
+  const _IdentityPanel({
+    required this.dictationTitle,
+    this.initialName,
+    required this.onConfirm,
+  });
+
+  final String dictationTitle;
+  final String? initialName;
+  final Future<void> Function(String? name, String? pinHash) onConfirm;
+
+  @override
+  State<_IdentityPanel> createState() => _IdentityPanelState();
+}
+
+class _IdentityPanelState extends State<_IdentityPanel> {
+  final _nameCtrl = TextEditingController();
+  final _pinCtrl = TextEditingController();
+  bool _starting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialName != null) _nameCtrl.text = widget.initialName!;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _pinCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _start() async {
+    setState(() => _starting = true);
+    final name = _nameCtrl.text.trim();
+    final pin = _pinCtrl.text.trim();
+    await widget.onConfirm(
+      name.isEmpty ? null : name,
+      pin.isEmpty ? null : hashPin(pin),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.dictationTitle)),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Before you start',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Enter your name so your teacher can see your results. '
+                  'Add a PIN to protect your identity.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+                const SizedBox(height: 28),
+                TextField(
+                  controller: _nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Your name (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _pinCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'PIN (optional, 4 digits)',
+                    border: OutlineInputBorder(),
+                    counterText: '',
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 4,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _starting ? null : _start(),
+                ),
+                const SizedBox(height: 28),
+                ElevatedButton(
+                  onPressed: _starting ? null : _start,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: _starting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Start Dictation',
+                          style: TextStyle(fontSize: 16)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Typing panel
 // ---------------------------------------------------------------------------
 
@@ -288,9 +496,6 @@ class _TypingPanel extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                // Override the global theme's Size(double.infinity, 48) so
-                // the button doesn't consume all row width, leaving 0px for
-                // the TextField.
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 11),
@@ -542,7 +747,7 @@ String _normalize(String s) =>
     s.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();
 
 // ---------------------------------------------------------------------------
-// Speed / Pause rows (unchanged)
+// Speed / Pause rows
 // ---------------------------------------------------------------------------
 
 class _SpeedRow extends ConsumerWidget {

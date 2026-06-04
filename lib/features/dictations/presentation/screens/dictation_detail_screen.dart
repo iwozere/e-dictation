@@ -48,6 +48,12 @@ class DictationDetailScreen extends ConsumerWidget {
               onPressed: () => context.go('/play/${dictation.id}'),
             ),
             IconButton(
+              icon: const Icon(Icons.bar_chart_rounded),
+              tooltip: 'Results',
+              onPressed: () =>
+                  context.go('/teacher/dictations/${dictation.id}/results'),
+            ),
+            IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit',
               onPressed: () =>

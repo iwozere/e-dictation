@@ -12,6 +12,7 @@ import '../../features/dictations/presentation/screens/create_dictation_screen.d
 import '../../features/dictations/presentation/screens/edit_dictation_screen.dart';
 import '../../features/dictations/presentation/screens/dictation_detail_screen.dart';
 import '../../features/dictations/presentation/screens/teacher_dashboard_screen.dart';
+import '../../features/attempts/presentation/screens/results_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../shared/widgets/teacher_shell.dart';
 
@@ -36,6 +37,9 @@ abstract final class AppRoute {
 
   /// Edit an existing dictation.
   static const editDictation = '/teacher/dictations/:id/edit';
+
+  /// Teacher results dashboard for a dictation.
+  static const dictationResults = '/teacher/dictations/:id/results';
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +159,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (_, state) {
                       final id = state.pathParameters['id']!;
                       return EditDictationScreen(dictationId: id);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'results',
+                    builder: (_, state) {
+                      final id = state.pathParameters['id']!;
+                      return ResultsScreen(dictationId: id);
                     },
                   ),
                 ],
