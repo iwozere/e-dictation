@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 flutter pub get                          # install / sync dependencies
 flutter pub run build_runner build       # one-shot code generation (Riverpod, etc.)
 flutter pub run build_runner watch       # code-gen in watch mode during development
-flutter analyze                          # static analysis (treat warnings as errors)
+flutter analyze --fatal-infos            # static analysis (matches CI: info lints fail too)
 dart format .                            # format all Dart files
 flutter run -d chrome                    # run web app in Chrome
 flutter build web                        # production web build
