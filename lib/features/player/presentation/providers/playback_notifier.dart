@@ -113,14 +113,16 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
   }
 
   /// Used in student typing mode: cancels the between-sentence auto-advance
-  /// and seeks the current sentence back to its start so pressing Play
-  /// replays it rather than jumping ahead.
+  /// and parks the player so pressing Play replays the *current* sentence
+  /// from the start rather than jumping ahead.
+  ///
+  /// The sentence has just finished, so the audio player is in the `completed`
+  /// state with its internal `playing` flag still true. We therefore mark the
+  /// current index for replay; [play] routes that through [_playSentenceAt],
+  /// which fully re-loads the source (a plain resume would be a silent no-op).
   Future<void> waitForInput() async {
     _pauseTimer?.cancel();
-    _pausedBeforeIndex = null;
-    try {
-      await _player.seek(Duration.zero);
-    } catch (_) {}
+    _pausedBeforeIndex = state.currentIndex;
     state = state.copyWith(status: PlaybackStatus.paused);
   }
 
@@ -200,12 +202,19 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
       return;
     }
 
+    _pausedBeforeIndex = null;
     state = state.copyWith(
       currentIndex: index,
       status: PlaybackStatus.loading,
     );
 
     try {
+      // Reset the player first. After a sentence completes its internal
+      // `playing` flag stays true, which would (a) make setAudioSource
+      // auto-start the next clip — defeating the lead-in — and (b) turn the
+      // subsequent play() into a no-op. stop() clears that flag so playback is
+      // deterministic.
+      await _player.stop();
       await _player.setAudioSource(AudioSource.uri(Uri.parse(sentence.audioUrl!)));
       await _player.setSpeed(state.speed);
       await _player.seek(Duration.zero);
