@@ -99,19 +99,35 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
   }
 
+  /// Persists the textbox content for [index]. An emptied field removes any
+  /// previously stored answer so edits (including clearing) round-trip.
   void _saveAnswer(int index) {
     final text = _answerCtrl.text.trim();
-    if (text.isNotEmpty) _answers[index] = text;
+    if (text.isNotEmpty) {
+      _answers[index] = text;
+    } else {
+      _answers.remove(index);
+    }
+  }
+
+  /// Loads the stored answer for [index] into the textbox, cursor at the end.
+  void _restoreAnswer(int index) {
+    final saved = _answers[index] ?? '';
+    _answerCtrl.value = TextEditingValue(
+      text: saved,
+      selection: TextSelection.collapsed(offset: saved.length),
+    );
   }
 
   void _submitAnswer(PlaybackStateModel playback) {
     _saveAnswer(playback.currentIndex);
-    _answerCtrl.clear();
     final isLast = playback.currentIndex >= playback.sentences.length - 1;
     if (isLast) {
       _saveAttempt();
       setState(() => _showResults = true);
     } else {
+      // The index-change listener saves the current draft and restores the
+      // next sentence's answer into the textbox.
       ref.read(playbackNotifierProvider.notifier).next();
     }
   }
@@ -158,10 +174,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         return;
       }
 
-      // Index changed (student or teacher navigated) → save draft, clear field.
+      // Index changed (student navigated via the transport buttons, or
+      // submitted) → auto-save the current draft and load the target
+      // sentence's stored answer so it can be reviewed/edited.
       if (prev.currentIndex != next.currentIndex) {
         _saveAnswer(prev.currentIndex);
-        _answerCtrl.clear();
+        _restoreAnswer(next.currentIndex);
         setState(() {});
       }
     });
