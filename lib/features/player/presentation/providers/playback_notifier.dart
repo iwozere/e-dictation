@@ -26,6 +26,10 @@ final playbackNotifierProvider =
 /// notifier inserts a [Future.delayed] pause. This is entirely index-based —
 /// there is no waveform position tracking.
 class PlaybackNotifier extends Notifier<PlaybackStateModel> {
+  /// Silent "get ready" delay inserted after the user presses Play and before
+  /// the sentence audio actually starts.
+  static const _leadIn = Duration(seconds: 1);
+
   late final AudioPlayer _player;
   StreamSubscription<PlayerState>? _playerStateSub;
   Timer? _pauseTimer;
@@ -92,16 +96,20 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
         // not paused. Resume by starting the sentence we were about to play.
         final next = _pausedBeforeIndex!;
         _pausedBeforeIndex = null;
-        await _playSentenceAt(next);
+        await _playSentenceAt(next, leadIn: true);
       } else {
         // Was paused mid-sentence — the audio player is genuinely paused.
-        await _player.play();
+        state = state.copyWith(status: PlaybackStatus.loading);
+        await Future.delayed(_leadIn);
+        // Bail out if the user paused/navigated again during the lead-in.
+        if (state.status != PlaybackStatus.loading) return;
         state = state.copyWith(status: PlaybackStatus.playing);
+        _startPlayer();
       }
       return;
     }
 
-    await _playSentenceAt(state.currentIndex);
+    await _playSentenceAt(state.currentIndex, leadIn: true);
   }
 
   /// Used in student typing mode: cancels the between-sentence auto-advance
@@ -177,13 +185,13 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
   // Internal helpers
   // ---------------------------------------------------------------------------
 
-  Future<void> _playSentenceAt(int index) async {
+  Future<void> _playSentenceAt(int index, {bool leadIn = false}) async {
     final sentence = state.sentences[index];
     if (!sentence.hasAudio) {
       _log.warning('Sentence %d has no audio URL', index);
       if (index + 1 < state.sentences.length) {
         // Skip to next sentence.
-        await _playSentenceAt(index + 1);
+        await _playSentenceAt(index + 1, leadIn: leadIn);
       } else {
         // All remaining sentences have no audio — treat as completed so the
         // player doesn't stay stuck in a phantom state.
@@ -201,8 +209,21 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(sentence.audioUrl!)));
       await _player.setSpeed(state.speed);
       await _player.seek(Duration.zero);
-      await _player.play();
+
+      if (leadIn) {
+        // Silent "get ready" beat between pressing Play and the audio starting.
+        await Future.delayed(_leadIn);
+        // Abort if the user paused or navigated to another sentence meanwhile.
+        if (state.status != PlaybackStatus.loading || state.currentIndex != index) {
+          return;
+        }
+      }
+
+      // NOTE: do not `await` play(). just_audio's play() Future only completes
+      // when the sentence finishes/pauses/stops, so awaiting it would keep the
+      // status pinned and bypass _onSentenceCompleted (which drives advancing).
       state = state.copyWith(status: PlaybackStatus.playing);
+      _startPlayer();
     } catch (e) {
       _log.severe('Error loading audio for sentence $index', e);
       state = state.copyWith(
@@ -210,6 +231,16 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
         errorMessage: 'Failed to load audio. Check your connection.',
       );
     }
+  }
+
+  /// Fires `_player.play()` without awaiting completion; completion is handled
+  /// via [_onSentenceCompleted] through the player state stream.
+  void _startPlayer() {
+    unawaited(
+      _player.play().catchError((Object e) {
+        _log.warning('Playback error', e);
+      }),
+    );
   }
 
   Future<void> _jumpTo(int index) async {
