@@ -3,9 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/pin_hash.dart';
 import '../../../../shared/widgets/error_view.dart';
@@ -456,6 +458,12 @@ class _IdentityPanelState extends State<_IdentityPanel> {
                         )
                       : const Text('Start Dictation',
                           style: TextStyle(fontSize: 16)),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () => context.push(AppRoute.studentHistory),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('See my past results'),
                 ),
               ],
             ),

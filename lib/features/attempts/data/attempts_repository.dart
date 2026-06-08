@@ -74,4 +74,56 @@ class AttemptsRepository {
       return (null, AttemptLoadFailed());
     }
   }
+
+  /// Fetches every attempt across all dictations owned by [ownerId], newest
+  /// first, with the dictation title embedded.
+  ///
+  /// RLS ("attempts: dictation owner read") restricts the result to the
+  /// teacher's own dictations; the `!inner` join additionally drops any
+  /// orphaned rows. Powers the teacher-wide results overview.
+  Future<(List<Attempt>?, AttemptFailure?)> listAllAttempts(
+      String ownerId) async {
+    try {
+      final rows = await _client
+          .from('attempts')
+          .select('*, dictations!inner(id, title, owner_id)')
+          .eq('dictations.owner_id', ownerId)
+          .order('completed_at', ascending: false) as List<dynamic>;
+
+      final attempts = rows
+          .map((r) => Attempt.fromJson(r as Map<String, dynamic>))
+          .toList();
+      return (attempts, null);
+    } catch (e) {
+      _log.severe('Failed to list all attempts for owner $ownerId', e);
+      return (null, AttemptLoadFailed());
+    }
+  }
+
+  /// Fetches a student's own attempt history by [studentName] + [pinHash].
+  ///
+  /// Calls the `get_student_attempts` SECURITY DEFINER RPC, which matches on
+  /// name + PIN hash and returns each attempt with its dictation title and
+  /// sentences. This is the only reliable lookup for anonymous students,
+  /// whose `auth.uid()` is not stable across sessions/devices.
+  Future<(List<Attempt>?, AttemptFailure?)> listStudentAttempts({
+    required String studentName,
+    required String pinHash,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'get_student_attempts',
+        params: {'p_name': studentName, 'p_pin_hash': pinHash},
+      );
+
+      final rows = (result as List<dynamic>?) ?? const [];
+      final attempts = rows
+          .map((r) => Attempt.fromJson(r as Map<String, dynamic>))
+          .toList();
+      return (attempts, null);
+    } catch (e) {
+      _log.severe('Failed to load history for student $studentName', e);
+      return (null, AttemptLoadFailed());
+    }
+  }
 }

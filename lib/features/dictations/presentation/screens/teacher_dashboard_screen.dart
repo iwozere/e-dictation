@@ -57,6 +57,11 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       appBar: AppBar(
         title: const Text('My Dictations'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.assessment_outlined),
+            tooltip: 'All results',
+            onPressed: () => context.go(AppRoute.resultsOverview),
+          ),
           if (user != null)
             Padding(
               padding: const EdgeInsets.only(right: 8),

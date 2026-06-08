@@ -174,6 +174,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           ),
                         ],
                       ),
+                      const Divider(height: 32),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              context.push(AppRoute.studentHistory),
+                          icon: const Icon(Icons.history, size: 18),
+                          label: const Text('Student? See your results'),
+                        ),
+                      ),
                     ],
                   ),
                 ),

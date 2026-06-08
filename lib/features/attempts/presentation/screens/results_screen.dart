@@ -8,6 +8,7 @@ import '../../../dictations/domain/dictation.dart';
 import '../../../dictations/presentation/providers/dictations_provider.dart';
 import '../../domain/attempt.dart';
 import '../providers/attempts_provider.dart';
+import '../widgets/attempt_breakdown.dart';
 
 class ResultsScreen extends ConsumerWidget {
   const ResultsScreen({super.key, required this.dictationId});
@@ -143,66 +144,7 @@ class _AttemptTile extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         children: [
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: sentences.asMap().entries.map((e) {
-                final idx = e.key;
-                final sentence = e.value;
-                final answer = attempt.answers[idx] ?? '';
-                final isCorrect = answer.isNotEmpty &&
-                    _normalize(answer) == _normalize(sentence.text);
-                final isBlank = answer.isEmpty;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            isCorrect
-                                ? Icons.check_circle
-                                : isBlank
-                                    ? Icons.remove_circle_outline
-                                    : Icons.cancel,
-                            size: 14,
-                            color: isCorrect
-                                ? AppColors.success
-                                : isBlank
-                                    ? Colors.grey
-                                    : AppColors.error,
-                          ),
-                          const SizedBox(width: 6),
-                          Text('Sentence ${idx + 1}',
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        sentence.text,
-                        style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.success,
-                            fontStyle: FontStyle.italic),
-                      ),
-                      if (!isCorrect && !isBlank) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          answer,
-                          style: const TextStyle(
-                              fontSize: 13, color: AppColors.error),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
+          AttemptBreakdown(attempt: attempt, sentences: sentences),
         ],
       ),
     );
@@ -216,6 +158,3 @@ Color _scoreColor(int correct, int total) {
   if (ratio >= 0.6) return AppColors.warning;
   return AppColors.error;
 }
-
-String _normalize(String s) =>
-    s.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();

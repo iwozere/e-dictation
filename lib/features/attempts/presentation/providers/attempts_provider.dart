@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/providers/supabase_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/attempts_repository.dart';
 import '../../domain/attempt.dart';
 
@@ -16,6 +17,37 @@ final dictationAttemptsProvider =
   final (attempts, failure) = await ref
       .read(attemptsRepositoryProvider)
       .listAttempts(dictationId);
+
+  if (failure != null) throw failure;
+  return attempts ?? [];
+});
+
+/// Fetches every attempt across all of the current teacher's dictations
+/// (teacher-wide overview). Empty when not signed in.
+final allAttemptsProvider =
+    FutureProvider.autoDispose<List<Attempt>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+
+  final (attempts, failure) =
+      await ref.read(attemptsRepositoryProvider).listAllAttempts(user.id);
+
+  if (failure != null) throw failure;
+  return attempts ?? [];
+});
+
+/// Argument bundle for [studentAttemptsProvider]; record equality lets
+/// Riverpod cache per (name, pinHash) pair.
+typedef StudentHistoryQuery = ({String name, String pinHash});
+
+/// Fetches a student's own attempt history by name + PIN hash.
+final studentAttemptsProvider = FutureProvider.autoDispose
+    .family<List<Attempt>, StudentHistoryQuery>((ref, query) async {
+  final (attempts, failure) =
+      await ref.read(attemptsRepositoryProvider).listStudentAttempts(
+            studentName: query.name,
+            pinHash: query.pinHash,
+          );
 
   if (failure != null) throw failure;
   return attempts ?? [];

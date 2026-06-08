@@ -13,6 +13,8 @@ import '../../features/dictations/presentation/screens/edit_dictation_screen.dar
 import '../../features/dictations/presentation/screens/dictation_detail_screen.dart';
 import '../../features/dictations/presentation/screens/teacher_dashboard_screen.dart';
 import '../../features/attempts/presentation/screens/results_screen.dart';
+import '../../features/attempts/presentation/screens/results_overview_screen.dart';
+import '../../features/attempts/presentation/screens/student_history_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../shared/widgets/teacher_shell.dart';
 
@@ -28,6 +30,12 @@ abstract final class AppRoute {
   static const dictationDetail = '/teacher/dictations/:id';
   static const classes = '/teacher/classes';
   static const createClass = '/teacher/classes/new';
+
+  /// Teacher-wide results overview across all dictations.
+  static const resultsOverview = '/teacher/results';
+
+  /// Public student history — review own past attempts via name + PIN.
+  static const studentHistory = '/history';
 
   /// Public player route — opened by students via share link.
   static const playerByCode = '/d/:code';
@@ -83,6 +91,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (isLoading) return null;
 
       final isPublicRoute = path.startsWith('/d/') ||
+          path == AppRoute.studentHistory ||
           path == AppRoute.signIn ||
           path == AppRoute.signUp;
 
@@ -119,6 +128,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final code = state.pathParameters['code']!;
           return PlayerScreen(shareCode: code);
         },
+      ),
+
+      // ------------------------------------------------------------------
+      // Public student history (review own attempts via name + PIN)
+      // ------------------------------------------------------------------
+      GoRoute(
+        path: AppRoute.studentHistory,
+        builder: (_, _) => const StudentHistoryScreen(),
       ),
 
       // ------------------------------------------------------------------
@@ -171,6 +188,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 ],
               ),
             ],
+          ),
+
+          // ---- Results overview (no own tab; reached from dashboard) ----
+          GoRoute(
+            path: AppRoute.resultsOverview,
+            builder: (_, _) => const ResultsOverviewScreen(),
           ),
 
           // ---- Classes tab ----
