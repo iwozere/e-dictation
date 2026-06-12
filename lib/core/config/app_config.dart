@@ -51,4 +51,10 @@ class AppConfig {
 
   /// Supported pause durations between sentences (seconds).
   static const List<int> pauseDurations = [2, 5, 10];
+
+  /// Public base URL used to build share links sent to students.
+  static const String appBaseUrl = String.fromEnvironment(
+    'APP_BASE_URL',
+    defaultValue: 'https://e-dictation.vercel.app',
+  );
 }

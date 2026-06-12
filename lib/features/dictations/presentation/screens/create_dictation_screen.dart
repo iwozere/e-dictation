@@ -23,6 +23,7 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _textCtrl = TextEditingController();
+  final _textFocusNode = FocusNode();
 
   DictationLanguage _language = DictationLanguage.german;
   DictationDifficulty? _difficulty;
@@ -35,6 +36,7 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
   void dispose() {
     _titleCtrl.dispose();
     _textCtrl.dispose();
+    _textFocusNode.dispose();
     super.dispose();
   }
 
@@ -227,36 +229,35 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                       OcrImageButton(
-                        onTextExtracted: (text) =>
-                            setState(() => _textCtrl.text = text),
+                        onTextExtracted: (text) {
+                          setState(() => _textCtrl.text = text);
+                          _textFocusNode.requestFocus();
+                        },
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      TextFormField(
-                        controller: _textCtrl,
-                        maxLines: 12,
-                        decoration: const InputDecoration(
-                          hintText: 'Paste or type the dictation text here…',
-                        ),
-                        onChanged: (_) => setState(() {}),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Text is required' : null,
+                  TextFormField(
+                    controller: _textCtrl,
+                    focusNode: _textFocusNode,
+                    maxLines: 12,
+                    decoration: const InputDecoration(
+                      hintText: 'Paste or type the dictation text here…',
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Text is required' : null,
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '$_wordCount / ${AppConfig.maxDictationWords}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _overLimit ? AppColors.error : Colors.grey[500],
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Text(
-                          '$_wordCount / ${AppConfig.maxDictationWords}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _overLimit ? AppColors.error : Colors.grey[500],
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   if (_overLimit) ...[
                     const SizedBox(height: 8),

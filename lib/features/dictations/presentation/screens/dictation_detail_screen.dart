@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../providers/dictations_provider.dart';
@@ -35,8 +36,9 @@ class DictationDetailScreen extends ConsumerWidget {
                 icon: const Icon(Icons.share_outlined),
                 tooltip: 'Copy share link',
                 onPressed: () {
-                  Clipboard.setData(
-                      ClipboardData(text: 'e-dictation.app/d/${dictation.shareCode}'));
+                  Clipboard.setData(ClipboardData(
+                      text:
+                          '${AppConfig.appBaseUrl}/d/${dictation.shareCode}'));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Share link copied!')),
                   );
@@ -98,11 +100,13 @@ class DictationDetailScreen extends ConsumerWidget {
                     ),
                     IconButton(
                       icon: const Icon(Icons.copy, color: AppColors.primary),
+                      tooltip: 'Copy link',
                       onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: dictation.shareCode!));
+                        Clipboard.setData(ClipboardData(
+                            text:
+                                '${AppConfig.appBaseUrl}/d/${dictation.shareCode}'));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Copied!')),
+                          const SnackBar(content: Text('Link copied!')),
                         );
                       },
                     ),
