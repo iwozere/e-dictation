@@ -47,6 +47,30 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
 
   bool get _overLimit => _wordCount > AppConfig.maxDictationWords;
 
+  void _applyOcrText(String text) {
+    final lines = text.split('\n');
+    final firstLine = lines.first.trim();
+    final rest = lines.skip(1).join('\n').trimLeft();
+
+    // If the title field is empty and the first line is short enough to be a
+    // title (≤80 chars, followed by more content), auto-split.
+    if (_titleCtrl.text.trim().isEmpty &&
+        firstLine.isNotEmpty &&
+        firstLine.length <= 80 &&
+        rest.isNotEmpty) {
+      setState(() {
+        _titleCtrl.text = firstLine;
+        _textCtrl.text = rest;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Title auto-filled from scan')),
+      );
+    } else {
+      setState(() => _textCtrl.text = text);
+    }
+    _textFocusNode.requestFocus();
+  }
+
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_overLimit) return;
@@ -230,8 +254,7 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                       ),
                       OcrImageButton(
                         onTextExtracted: (text) {
-                          setState(() => _textCtrl.text = text);
-                          _textFocusNode.requestFocus();
+                          _applyOcrText(text);
                         },
                       ),
                     ],

@@ -69,6 +69,28 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
       (_textCtrl.text.trim() != _originalText.trim() ||
           _language != _originalLanguage);
 
+  void _applyOcrText(String text) {
+    final lines = text.split('\n');
+    final firstLine = lines.first.trim();
+    final rest = lines.skip(1).join('\n').trimLeft();
+
+    if (_titleCtrl.text.trim().isEmpty &&
+        firstLine.isNotEmpty &&
+        firstLine.length <= 80 &&
+        rest.isNotEmpty) {
+      setState(() {
+        _titleCtrl.text = firstLine;
+        _textCtrl.text = rest;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Title auto-filled from scan')),
+      );
+    } else {
+      setState(() => _textCtrl.text = text);
+    }
+    _textFocusNode.requestFocus();
+  }
+
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_overLimit) return;
@@ -316,10 +338,7 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           OcrImageButton(
-                            onTextExtracted: (text) {
-                              setState(() => _textCtrl.text = text);
-                              _textFocusNode.requestFocus();
-                            },
+                            onTextExtracted: _applyOcrText,
                           ),
                         ],
                       ),
