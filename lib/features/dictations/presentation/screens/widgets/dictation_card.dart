@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../../core/theme/app_theme.dart';
 import '../../../domain/dictation.dart';
@@ -72,7 +73,7 @@ class DictationCard extends ConsumerWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${dictation.sentences.length}s · ${dictation.wordCount}w',
+                          '${dictation.sentences.length}s · ${dictation.wordCount}w · ${DateFormat('d MMM yyyy').format(dictation.createdAt)}',
                           style: TextStyle(
                               fontSize: 11, color: Colors.grey[500]),
                         ),

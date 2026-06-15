@@ -12,6 +12,7 @@ import '../../features/dictations/presentation/screens/create_dictation_screen.d
 import '../../features/dictations/presentation/screens/edit_dictation_screen.dart';
 import '../../features/dictations/presentation/screens/dictation_detail_screen.dart';
 import '../../features/dictations/presentation/screens/teacher_dashboard_screen.dart';
+import '../../features/attempts/presentation/screens/all_attempts_screen.dart';
 import '../../features/attempts/presentation/screens/results_screen.dart';
 import '../../features/attempts/presentation/screens/results_overview_screen.dart';
 import '../../features/attempts/presentation/screens/student_history_screen.dart';
@@ -33,6 +34,9 @@ abstract final class AppRoute {
 
   /// Teacher-wide results overview across all dictations.
   static const resultsOverview = '/teacher/results';
+
+  /// Flat list of all completed attempts — the new Results tab.
+  static const allAttempts = '/teacher/results/all';
 
   /// Public student history — review own past attempts via name + PIN.
   static const studentHistory = '/history';
@@ -194,6 +198,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoute.resultsOverview,
             builder: (_, _) => const ResultsOverviewScreen(),
+          ),
+
+          // ---- All attempts tab ----
+          GoRoute(
+            path: AppRoute.allAttempts,
+            builder: (_, _) => const AllAttemptsScreen(),
           ),
 
           // ---- Classes tab ----

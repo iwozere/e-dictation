@@ -36,6 +36,17 @@ final allAttemptsProvider =
   return attempts ?? [];
 });
 
+/// Fetches a single attempt with its sentences for the teacher preview view.
+final attemptDetailProvider =
+    FutureProvider.autoDispose.family<Attempt, String>((ref, attemptId) async {
+  final (attempt, failure) = await ref
+      .read(attemptsRepositoryProvider)
+      .getAttemptDetail(attemptId);
+
+  if (failure != null) throw failure;
+  return attempt!;
+});
+
 /// Argument bundle for [studentAttemptsProvider]; record equality lets
 /// Riverpod cache per (name, pinHash) pair.
 typedef StudentHistoryQuery = ({String name, String pinHash});

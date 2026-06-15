@@ -26,11 +26,18 @@ class TeacherShell extends ConsumerWidget {
       label: 'Classes',
       route: AppRoute.classes,
     ),
+    _Tab(
+      icon: Icons.bar_chart_outlined,
+      activeIcon: Icons.bar_chart,
+      label: 'Results',
+      route: AppRoute.allAttempts,
+    ),
   ];
 
   int _currentIndex(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
     if (path.startsWith('/teacher/classes')) return 1;
+    if (path.startsWith('/teacher/results/all')) return 2;
     return 0;
   }
 

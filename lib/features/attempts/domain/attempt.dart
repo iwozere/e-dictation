@@ -15,6 +15,7 @@ class Attempt {
     required this.scoreCorrect,
     required this.scoreTotal,
     required this.completedAt,
+    this.startedAt,
     this.dictationTitle,
     this.sentences = const [],
   });
@@ -37,6 +38,10 @@ class Attempt {
   final int scoreCorrect;
   final int scoreTotal;
   final DateTime completedAt;
+
+  /// When the student confirmed their identity and the player became active.
+  /// Null for attempts recorded before migration 007.
+  final DateTime? startedAt;
 
   /// Title of the parent dictation, when the row was fetched with a join
   /// (teacher overview) or via the student-history RPC. Null for the
@@ -73,6 +78,9 @@ class Attempt {
       scoreCorrect: json['score_correct'] as int? ?? 0,
       scoreTotal: json['score_total'] as int? ?? 0,
       completedAt: DateTime.parse(json['completed_at'] as String),
+      startedAt: json['started_at'] == null
+          ? null
+          : DateTime.parse(json['started_at'] as String),
       dictationTitle: dictationTitle,
       sentences: rawSentences == null
           ? const []

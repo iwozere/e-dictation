@@ -1,6 +1,7 @@
 import 'package:logging/logging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../dictations/domain/dictation.dart';
 import '../domain/attempt.dart';
 
 final _log = Logger('attempts.AttemptsRepository');
@@ -27,6 +28,7 @@ class AttemptsRepository {
     required Map<int, String> answers,
     required int scoreCorrect,
     required int scoreTotal,
+    DateTime? startedAt,
   }) async {
     try {
       final studentId = _client.auth.currentUser?.id;
@@ -44,6 +46,7 @@ class AttemptsRepository {
         'score_correct': scoreCorrect,
         'score_total': scoreTotal,
         'score': score,
+        if (startedAt != null) 'started_at': startedAt.toUtc().toIso8601String(),
       }).select().single();
 
       return (Attempt.fromJson(row), null);
@@ -96,6 +99,52 @@ class AttemptsRepository {
       return (attempts, null);
     } catch (e) {
       _log.severe('Failed to list all attempts for owner $ownerId', e);
+      return (null, AttemptLoadFailed());
+    }
+  }
+
+  /// Fetches a single attempt with its dictation sentences for the teacher
+  /// preview view. Requires the caller to own the dictation (enforced by RLS).
+  Future<(Attempt?, AttemptFailure?)> getAttemptDetail(
+      String attemptId) async {
+    try {
+      final row = await _client
+          .from('attempts')
+          .select('*, dictations!inner(id, title, owner_id)')
+          .eq('id', attemptId)
+          .single();
+
+      final attempt = Attempt.fromJson(row);
+
+      final sentenceRows = await _client
+          .from('dictation_sentences')
+          .select()
+          .eq('dictation_id', attempt.dictationId)
+          .order('position') as List<dynamic>;
+
+      final sentences = sentenceRows
+          .map((s) => DictationSentence.fromJson(s as Map<String, dynamic>))
+          .toList();
+
+      return (
+        Attempt(
+          id: attempt.id,
+          dictationId: attempt.dictationId,
+          studentId: attempt.studentId,
+          studentName: attempt.studentName,
+          studentPinHash: attempt.studentPinHash,
+          answers: attempt.answers,
+          scoreCorrect: attempt.scoreCorrect,
+          scoreTotal: attempt.scoreTotal,
+          completedAt: attempt.completedAt,
+          startedAt: attempt.startedAt,
+          dictationTitle: attempt.dictationTitle,
+          sentences: sentences,
+        ),
+        null
+      );
+    } catch (e) {
+      _log.severe('Failed to load attempt detail $attemptId', e);
       return (null, AttemptLoadFailed());
     }
   }
