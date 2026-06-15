@@ -263,6 +263,7 @@ class _AttemptPreviewSheet extends ConsumerWidget {
               data: (attempt) => StudentResultsView(
                 sentences: attempt.sentences,
                 answers: attempt.answers,
+                scrollController: controller,
               ),
             ),
           ),

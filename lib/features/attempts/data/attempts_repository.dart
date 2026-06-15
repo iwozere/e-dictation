@@ -124,7 +124,8 @@ class AttemptsRepository {
 
       final sentences = sentenceRows
           .map((s) => DictationSentence.fromJson(s as Map<String, dynamic>))
-          .toList();
+          .toList()
+        ..sort((a, b) => a.position.compareTo(b.position));
 
       return (
         Attempt(

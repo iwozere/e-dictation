@@ -13,12 +13,18 @@ class StudentResultsView extends StatelessWidget {
     super.key,
     required this.sentences,
     required this.answers,
+    this.scrollController,
   });
 
   final List<DictationSentence> sentences;
 
   /// Per-sentence answers keyed by sentence index (0-based).
   final Map<int, String> answers;
+
+  /// Optional scroll controller — pass the [DraggableScrollableSheet]
+  /// controller when rendering inside a bottom sheet so the sheet and the
+  /// list share the same scroll axis.
+  final ScrollController? scrollController;
 
   int get _score => sentences.asMap().entries.where((e) {
         final answer = answers[e.key];
@@ -37,6 +43,7 @@ class StudentResultsView extends StatelessWidget {
             : AppColors.error;
 
     return ListView(
+      controller: scrollController,
       padding: const EdgeInsets.all(16),
       children: [
         Container(
