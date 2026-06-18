@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../../core/config/app_config.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../domain/dictation.dart';
 import '../../providers/dictations_provider.dart';
@@ -83,11 +84,12 @@ class DictationCard extends ConsumerWidget {
                           const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () {
-                              Clipboard.setData(ClipboardData(
-                                  text: dictation.shareCode!));
+                              final link =
+                                  '${AppConfig.appBaseUrl}/d/${dictation.shareCode!}';
+                              Clipboard.setData(ClipboardData(text: link));
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                    content: Text('Share code copied!')),
+                                    content: Text('Share link copied!')),
                               );
                             },
                             child: Text(
