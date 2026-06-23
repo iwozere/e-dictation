@@ -263,4 +263,4 @@ class _DiffDisplay extends StatelessWidget {
 }
 
 String _normalize(String s) =>
-    s.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();
+    s.toLowerCase().replaceAll('ß', 'ss').replaceAll(RegExp(r'[^\w\s]'), '').trim();

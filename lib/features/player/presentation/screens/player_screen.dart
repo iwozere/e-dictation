@@ -215,6 +215,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         if (_isStudentView && !_identityConfirmed) {
           return _IdentityPanel(
             dictationTitle: dictation.title,
+            wordCount: dictation.wordCount,
             initialName: _studentName,
             onConfirm: _confirmIdentity,
           );
@@ -356,11 +357,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 class _IdentityPanel extends StatefulWidget {
   const _IdentityPanel({
     required this.dictationTitle,
+    required this.wordCount,
     this.initialName,
     required this.onConfirm,
   });
 
   final String dictationTitle;
+  final int wordCount;
   final String? initialName;
   final Future<void> Function(String? name, String? pinHash) onConfirm;
 
@@ -419,7 +422,20 @@ class _IdentityPanelState extends State<_IdentityPanel> {
                   'Add a PIN to protect your identity.',
                   style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.text_fields,
+                        size: 16, color: Colors.grey[500]),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${widget.wordCount} words',
+                      style:
+                          TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 TextField(
                   controller: _nameCtrl,
                   decoration: const InputDecoration(
@@ -539,7 +555,7 @@ class _TypingPanel extends StatelessWidget {
 }
 
 String _normalize(String s) =>
-    s.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();
+    s.toLowerCase().replaceAll('ß', 'ss').replaceAll(RegExp(r'[^\w\s]'), '').trim();
 
 // ---------------------------------------------------------------------------
 // Speed / Pause rows
