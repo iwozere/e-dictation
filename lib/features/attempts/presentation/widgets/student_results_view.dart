@@ -1,7 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 
+import '../../../../core/scoring/scoring.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../dictations/domain/dictation.dart';
 
@@ -26,11 +25,8 @@ class StudentResultsView extends StatelessWidget {
   /// list share the same scroll axis.
   final ScrollController? scrollController;
 
-  int get _score => sentences.asMap().entries.where((e) {
-        final answer = answers[e.key];
-        if (answer == null || answer.isEmpty) return false;
-        return _normalize(answer) == _normalize(e.value.text);
-      }).length;
+  int get _score =>
+      scoreAttempt(sentences, answers, ScoringMode.lenient).correct;
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +77,7 @@ class StudentResultsView extends StatelessWidget {
           final sentence = e.value;
           final answer = answers[idx] ?? '';
           final isCorrect = answer.isNotEmpty &&
-              _normalize(answer) == _normalize(sentence.text);
+              sentenceMatches(answer, sentence.text, ScoringMode.lenient);
           final isBlank = answer.isEmpty;
 
           final borderColor = isCorrect
@@ -148,26 +144,17 @@ class StudentResultsView extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Word-level diff
+// Word-level diff display
 // ---------------------------------------------------------------------------
 
-enum _WordStatus { correct, wrong, missing }
-
-class _DiffWord {
-  const _DiffWord(this.word, this.status);
-  final String word;
-  final _WordStatus status;
-}
-
 class _DiffDisplay extends StatelessWidget {
-  const _DiffDisplay(
-      {required this.studentText, required this.expectedText});
+  const _DiffDisplay({required this.studentText, required this.expectedText});
   final String studentText;
   final String expectedText;
 
   @override
   Widget build(BuildContext context) {
-    final diff = _wordDiff(studentText, expectedText);
+    final diff = wordDiff(studentText, expectedText, ScoringMode.lenient);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -179,16 +166,15 @@ class _DiffDisplay extends StatelessWidget {
           runSpacing: 2,
           children: diff.map((d) {
             return switch (d.status) {
-              _WordStatus.correct =>
+              WordStatus.correct =>
                 Text(d.word, style: const TextStyle(fontSize: 14)),
-              _WordStatus.wrong => Text(d.word,
+              WordStatus.wrong => Text(d.word,
                   style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.error,
                       decoration: TextDecoration.lineThrough)),
-              _WordStatus.missing => Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 1),
+              WordStatus.missing => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     color: AppColors.warning.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
@@ -214,53 +200,4 @@ class _DiffDisplay extends StatelessWidget {
       ],
     );
   }
-
-  List<_DiffWord> _wordDiff(String student, String expected) {
-    final sw = student
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
-    final ew = expected
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
-    final m = sw.length;
-    final n = ew.length;
-
-    final dp =
-        List.generate(m + 1, (_) => List.filled(n + 1, 0));
-    for (int i = 1; i <= m; i++) {
-      for (int j = 1; j <= n; j++) {
-        dp[i][j] =
-            _normalize(sw[i - 1]) == _normalize(ew[j - 1])
-                ? dp[i - 1][j - 1] + 1
-                : max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-
-    final result = <_DiffWord>[];
-    int i = m, j = n;
-    while (i > 0 || j > 0) {
-      if (i > 0 &&
-          j > 0 &&
-          _normalize(sw[i - 1]) == _normalize(ew[j - 1])) {
-        result.insert(0, _DiffWord(sw[i - 1], _WordStatus.correct));
-        i--;
-        j--;
-      } else if (j > 0 &&
-          (i == 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-        result.insert(0, _DiffWord(ew[j - 1], _WordStatus.missing));
-        j--;
-      } else {
-        result.insert(0, _DiffWord(sw[i - 1], _WordStatus.wrong));
-        i--;
-      }
-    }
-    return result;
-  }
 }
-
-String _normalize(String s) =>
-    s.toLowerCase().replaceAll('ß', 'ss').replaceAll(RegExp(r'[^\w\s]'), '').trim();

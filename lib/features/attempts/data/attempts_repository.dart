@@ -18,38 +18,33 @@ class AttemptsRepository {
 
   final SupabaseClient _client;
 
-  /// Saves a completed dictation attempt.
+  /// Saves a completed dictation attempt via the `submit_attempt` RPC.
   ///
+  /// Scoring is performed server-side — do not pass pre-computed scores.
   /// Returns the saved [Attempt] on success or an [AttemptFailure] on error.
   Future<(Attempt?, AttemptFailure?)> saveAttempt({
     required String dictationId,
     required String? studentName,
     required String? studentPinHash,
     required Map<int, String> answers,
-    required int scoreCorrect,
-    required int scoreTotal,
     DateTime? startedAt,
   }) async {
     try {
-      final studentId = _client.auth.currentUser?.id;
       final answersJson = answers.map((k, v) => MapEntry(k.toString(), v));
-      final score = scoreTotal > 0
-          ? (scoreCorrect * 100 / scoreTotal).round()
-          : 0;
 
-      final row = await _client.from('attempts').insert({
-        'dictation_id': dictationId,
-        'student_id': studentId,
-        'student_name': studentName,
-        'student_pin_hash': studentPinHash,
-        'answers': answersJson,
-        'score_correct': scoreCorrect,
-        'score_total': scoreTotal,
-        'score': score,
-        if (startedAt != null) 'started_at': startedAt.toUtc().toIso8601String(),
-      }).select().single();
+      final result = await _client.rpc(
+        'submit_attempt',
+        params: {
+          'p_dictation_id': dictationId,
+          'p_answers': answersJson,
+          'p_student_name': studentName,
+          'p_pin_hash': studentPinHash,
+          if (startedAt != null)
+            'p_started_at': startedAt.toUtc().toIso8601String(),
+        },
+      );
 
-      return (Attempt.fromJson(row), null);
+      return (Attempt.fromJson(result as Map<String, dynamic>), null);
     } catch (e) {
       _log.severe('Failed to save attempt for dictation $dictationId', e);
       return (null, AttemptSaveFailed());

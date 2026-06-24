@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -126,8 +128,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _saveAnswer(playback.currentIndex);
     final isLast = playback.currentIndex >= playback.sentences.length - 1;
     if (isLast) {
-      _saveAttempt();
+      // Show results immediately from local answers; persist in background.
       setState(() => _showResults = true);
+      unawaited(_saveAttempt());
     } else {
       // The index-change listener saves the current draft and restores the
       // next sentence's answer into the textbox.
@@ -135,27 +138,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  void _saveAttempt() {
+  Future<void> _saveAttempt() async {
     if (_savingAttempt || _currentDictation == null) return;
-    _savingAttempt = true;
-
-    final sentences = _currentDictation!.sentences;
-    final scoreCorrect = sentences.asMap().entries.where((e) {
-      final answer = _answers[e.key];
-      if (answer == null || answer.isEmpty) return false;
-      return _normalize(answer) == _normalize(e.value.text);
-    }).length;
-
-    ref.read(attemptsRepositoryProvider).saveAttempt(
-      dictationId: _currentDictation!.id,
-      studentName: _studentName,
-      studentPinHash: _studentPinHash,
-      answers: Map.of(_answers),
-      scoreCorrect: scoreCorrect,
-      scoreTotal: sentences.length,
-      startedAt: _startedAt,
-    );
-    // Fire-and-forget; errors are logged in the repository.
+    setState(() => _savingAttempt = true);
+    try {
+      final (_, failure) = await ref.read(attemptsRepositoryProvider).saveAttempt(
+        dictationId: _currentDictation!.id,
+        studentName: _studentName,
+        studentPinHash: _studentPinHash,
+        answers: Map.of(_answers),
+        startedAt: _startedAt,
+      );
+      if (!mounted) return;
+      if (failure != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not save results. Tap Retry to try again.'),
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(label: 'Retry', onPressed: _saveAttempt),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingAttempt = false);
+    }
   }
 
   @override
@@ -553,9 +559,6 @@ class _TypingPanel extends StatelessWidget {
     );
   }
 }
-
-String _normalize(String s) =>
-    s.toLowerCase().replaceAll('ß', 'ss').replaceAll(RegExp(r'[^\w\s]'), '').trim();
 
 // ---------------------------------------------------------------------------
 // Speed / Pause rows
