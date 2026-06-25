@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/domain/app_user.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
 import '../../features/classes/presentation/screens/classes_screen.dart';
@@ -52,6 +53,9 @@ abstract final class AppRoute {
 
   /// Teacher results dashboard for a dictation.
   static const dictationResults = '/teacher/dictations/:id/results';
+
+  /// Password-reset landing page — opened via the link in a reset email.
+  static const resetPassword = '/reset-password';
 }
 
 // ---------------------------------------------------------------------------
@@ -97,7 +101,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isPublicRoute = path.startsWith('/d/') ||
           path == AppRoute.studentHistory ||
           path == AppRoute.signIn ||
-          path == AppRoute.signUp;
+          path == AppRoute.signUp ||
+          path == AppRoute.resetPassword;
 
       if (user == null && !isPublicRoute) return AppRoute.signIn;
 
@@ -140,6 +145,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.studentHistory,
         builder: (_, _) => const StudentHistoryScreen(),
+      ),
+
+      // ------------------------------------------------------------------
+      // Password reset landing page (arrived via emailed link)
+      // ------------------------------------------------------------------
+      GoRoute(
+        path: AppRoute.resetPassword,
+        builder: (_, _) => const ResetPasswordScreen(),
       ),
 
       // ------------------------------------------------------------------

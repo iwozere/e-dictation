@@ -1,6 +1,7 @@
 import 'package:logging/logging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/app_config.dart';
 import '../domain/app_user.dart';
 import '../domain/auth_failure.dart';
 
@@ -122,6 +123,43 @@ class AuthRepository {
 
   Future<void> signOut() async {
     await _client.auth.signOut();
+  }
+
+  /// Sends a password-reset email to [email].
+  ///
+  /// The email contains a link back to the app's `/reset-password` route.
+  /// Returns null on success or an [AuthFailure] on error.
+  Future<AuthFailure?> sendPasswordReset(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(
+        email.trim(),
+        redirectTo: '${AppConfig.appBaseUrl}/reset-password',
+      );
+      return null;
+    } on AuthException catch (e) {
+      _log.warning('sendPasswordReset failed: %s', e.message);
+      return UnknownAuthFailure(e.message);
+    } catch (e) {
+      _log.severe('sendPasswordReset unexpected error: %s', e);
+      return UnknownAuthFailure(e.toString());
+    }
+  }
+
+  /// Updates the current user's password.
+  ///
+  /// Call after a password-recovery session is established (the user arrived
+  /// via a reset-password link). Returns null on success or an [AuthFailure].
+  Future<AuthFailure?> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+      return null;
+    } on AuthException catch (e) {
+      _log.warning('updatePassword failed: %s', e.message);
+      return UnknownAuthFailure(e.message);
+    } catch (e) {
+      _log.severe('updatePassword unexpected error: %s', e);
+      return UnknownAuthFailure(e.toString());
+    }
   }
 
   // ---------------------------------------------------------------------------
