@@ -50,8 +50,24 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+# App launcher icons — regenerate with:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+  # Full-bleed icon for iOS / web / legacy Android (pre-API 26).
+  image_path: "web/icons/Icon-512.png"
+  remove_alpha_ios: true
+  # Android adaptive icon (API 26+): foreground is the safe-zone maskable art,
+  # background is the brand blue shown at the cropped corners.
+  adaptive_icon_background: "#3D6FF2"
+  adaptive_icon_foreground: "web/icons/Icon-maskable-512.png"

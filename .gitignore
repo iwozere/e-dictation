@@ -44,6 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .env.local
+
+# Compile-time Flutter config (real values); keep the .example templates
+dart_defines.*.json
+!dart_defines.*.example.json
 run_web.bat
 .claude/
 .vercel/

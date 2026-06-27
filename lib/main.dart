@@ -18,7 +18,9 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
+    // The "anon" key is published as "publishableKey" in supabase_flutter 2.x.
+    // The value is still the public key passed via SUPABASE_ANON_KEY.
+    publishableKey: AppConfig.supabaseAnonKey,
   );
 
   runApp(const ProviderScope(child: EDictationApp()));
