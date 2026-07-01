@@ -26,8 +26,15 @@ enabled = true
 
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000"]
+# The app sends redirect_to = "${APP_BASE_URL}/reset-password" (defaults to the
+# Vercel prod URL). Supabase only honors a redirect_to that matches this list,
+# otherwise it falls back to site_url — so both must allow the URLs we send.
+site_url = "https://e-dictation.vercel.app"
+additional_redirect_urls = [
+  "https://e-dictation.vercel.app/**",
+  # Flutter web dev server (any localhost port) for local testing.
+  "http://localhost:*/**",
+]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
