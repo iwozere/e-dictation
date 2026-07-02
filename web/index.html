@@ -32,6 +32,18 @@
 
   <title>e_dictation</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Corbado Passkeys Web SDK. Pulled in transitively via supabase_flutter →
+    gotrue → passkeys_web (2.9.0). Its web plugin calls
+    `PasskeyAuthenticator.init()` during Flutter plugin registration, so this
+    global MUST be defined before flutter_bootstrap.js runs — otherwise the app
+    throws "Cannot read properties of undefined (reading 'init')" and renders a
+    blank page. Vendored locally (release 2.4.0) rather than hot-linked from the
+    GitHub release, which serves it as application/octet-stream + nosniff.
+    Regenerate with: curl -L https://github.com/corbado/flutter-passkeys/releases/download/2.4.0/bundle.js -o web/passkeys.bundle.js
+  -->
+  <script src="passkeys.bundle.js"></script>
 </head>
 <body>
   <!--
