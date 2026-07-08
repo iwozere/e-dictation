@@ -4,6 +4,7 @@ import '../../../../shared/providers/supabase_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/attempts_repository.dart';
 import '../../domain/attempt.dart';
+import '../../domain/attempt_stats.dart';
 
 final attemptsRepositoryProvider = Provider<AttemptsRepository>((ref) {
   return AttemptsRepository(ref.read(supabaseClientProvider));
@@ -12,14 +13,31 @@ final attemptsRepositoryProvider = Provider<AttemptsRepository>((ref) {
 /// Fetches all attempts for a dictation (teacher view).
 ///
 /// Requires the current user to own the dictation — enforced by RLS.
-final dictationAttemptsProvider =
-    FutureProvider.family<List<Attempt>, String>((ref, dictationId) async {
+/// Auto-disposed so re-entering a screen refetches fresh results.
+final dictationAttemptsProvider = FutureProvider.autoDispose
+    .family<List<Attempt>, String>((ref, dictationId) async {
   final (attempts, failure) = await ref
       .read(attemptsRepositoryProvider)
       .listAttempts(dictationId);
 
   if (failure != null) throw failure;
   return attempts ?? [];
+});
+
+/// Per-dictation attempt aggregates (total tries + latest try) across all of
+/// the current teacher's dictations, keyed by dictation id.
+///
+/// Powers the tries badge on the dashboard cards. Empty when not signed in.
+final attemptStatsProvider =
+    FutureProvider.autoDispose<Map<String, AttemptStats>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const {};
+
+  final (stats, failure) =
+      await ref.read(attemptsRepositoryProvider).fetchAttemptStats(user.id);
+
+  if (failure != null) throw failure;
+  return stats ?? const {};
 });
 
 /// Fetches every attempt across all of the current teacher's dictations

@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 
 import '../../../../../core/config/app_config.dart';
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../attempts/domain/attempt_stats.dart';
+import '../../../../attempts/presentation/providers/attempts_provider.dart';
 import '../../../domain/dictation.dart';
 import '../../providers/dictations_provider.dart';
 
@@ -15,6 +17,14 @@ class DictationCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Null while the stats are still loading; a missing entry after load
+    // means the dictation has no tries yet.
+    final statsAsync = ref.watch(attemptStatsProvider);
+    final stats = statsAsync.hasValue
+        ? (statsAsync.value![dictation.id] ??
+            const AttemptStats(totalTries: 0, latestTryAt: null))
+        : null;
+
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -52,6 +62,15 @@ class DictationCard extends ConsumerWidget {
                           _Chip(
                             label: dictation.difficulty!.label,
                             color: _difficultyColor(dictation.difficulty!),
+                          ),
+                        ],
+                        if (stats != null) ...[
+                          const SizedBox(width: 4),
+                          _Chip(
+                            label: _triesLabel(stats),
+                            color: stats.totalTries > 0
+                                ? AppColors.secondary
+                                : Colors.grey,
                           ),
                         ],
                       ],
@@ -115,6 +134,14 @@ class DictationCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _triesLabel(AttemptStats stats) {
+    if (stats.totalTries == 0) return 'no tries';
+    final noun = stats.totalTries == 1 ? 'try' : 'tries';
+    final date =
+        DateFormat('d MMM HH:mm').format(stats.latestTryAt!.toLocal());
+    return '${stats.totalTries} $noun · $date';
   }
 
   Color _difficultyColor(DictationDifficulty d) => switch (d) {

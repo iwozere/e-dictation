@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../dictations/domain/dictation.dart';
 import '../domain/attempt.dart';
+import '../domain/attempt_stats.dart';
 
 final _log = Logger('attempts.AttemptsRepository');
 
@@ -69,6 +70,44 @@ class AttemptsRepository {
       return (attempts, null);
     } catch (e) {
       _log.severe('Failed to list attempts for dictation $dictationId', e);
+      return (null, AttemptLoadFailed());
+    }
+  }
+
+  /// Fetches per-dictation attempt aggregates (total tries + latest try) for
+  /// every dictation owned by [ownerId], keyed by dictation id.
+  ///
+  /// Selects only `dictation_id` and `completed_at` to keep the payload small
+  /// on dashboards with many attempts; aggregation happens client-side. RLS
+  /// ("attempts: dictation owner read") restricts rows to the teacher's own
+  /// dictations.
+  Future<(Map<String, AttemptStats>?, AttemptFailure?)> fetchAttemptStats(
+      String ownerId) async {
+    try {
+      final rows = await _client
+          .from('attempts')
+          .select('dictation_id, completed_at, dictations!inner(owner_id)')
+          .eq('dictations.owner_id', ownerId) as List<dynamic>;
+
+      final stats = <String, AttemptStats>{};
+      for (final row in rows) {
+        final r = row as Map<String, dynamic>;
+        final dictationId = r['dictation_id'] as String;
+        final completedAt = DateTime.parse(r['completed_at'] as String);
+        final existing = stats[dictationId];
+        // Rows always carry completed_at, so latestTryAt is non-null for any
+        // dictation present in the map.
+        stats[dictationId] = AttemptStats(
+          totalTries: (existing?.totalTries ?? 0) + 1,
+          latestTryAt:
+              existing == null || completedAt.isAfter(existing.latestTryAt!)
+                  ? completedAt
+                  : existing.latestTryAt,
+        );
+      }
+      return (stats, null);
+    } catch (e) {
+      _log.severe('Failed to load attempt stats for owner $ownerId', e);
       return (null, AttemptLoadFailed());
     }
   }

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/error_view.dart';
+import '../../../attempts/domain/attempt.dart';
+import '../../../attempts/presentation/providers/attempts_provider.dart';
 import '../providers/dictations_provider.dart';
 
 class DictationDetailScreen extends ConsumerWidget {
@@ -161,9 +164,124 @@ class DictationDetailScreen extends ConsumerWidget {
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+
+            // Tries (inline results grid)
+            _TriesSection(dictationId: dictationId),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tries section — inline grid of all attempts for this dictation
+// ---------------------------------------------------------------------------
+
+class _TriesSection extends ConsumerWidget {
+  const _TriesSection({required this.dictationId});
+  final String dictationId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final attemptsAsync = ref.watch(dictationAttemptsProvider(dictationId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Tries',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 8),
+        attemptsAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, _) => ErrorView(
+            message: 'Could not load tries.',
+            onRetry: () =>
+                ref.invalidate(dictationAttemptsProvider(dictationId)),
+          ),
+          data: (attempts) => attempts.isEmpty
+              ? Text('No tries yet.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13))
+              : _TriesGrid(dictationId: dictationId, attempts: attempts),
+        ),
+      ],
+    );
+  }
+}
+
+class _TriesGrid extends StatelessWidget {
+  const _TriesGrid({required this.dictationId, required this.attempts});
+  final String dictationId;
+  final List<Attempt> attempts;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: DataTable(
+            showCheckboxColumn: false,
+            headingRowHeight: 36,
+            dataRowMinHeight: 36,
+            dataRowMaxHeight: 44,
+            columns: const [
+              DataColumn(label: Text('Student')),
+              DataColumn(label: Text('Date')),
+              DataColumn(label: Text('Completed'), numeric: true),
+              DataColumn(label: Text('Failures'), numeric: true),
+            ],
+            rows: attempts.map((a) => _row(context, a)).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  DataRow _row(BuildContext context, Attempt attempt) {
+    final failures = attempt.scoreTotal - attempt.scoreCorrect;
+    final date =
+        DateFormat('d MMM yyyy HH:mm').format(attempt.completedAt.toLocal());
+
+    return DataRow(
+      onSelectChanged: (_) =>
+          context.go('/teacher/dictations/$dictationId/results'),
+      cells: [
+        DataCell(Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(attempt.displayName,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            if (attempt.hasPinSet) ...[
+              const SizedBox(width: 4),
+              const Tooltip(
+                message: 'PIN set',
+                child: Icon(Icons.lock_outline,
+                    size: 13, color: AppColors.primary),
+              ),
+            ],
+          ],
+        )),
+        DataCell(Text(date,
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]))),
+        DataCell(Text(
+          '${attempt.scoreCorrect}/${attempt.scoreTotal}',
+          style: const TextStyle(
+              fontWeight: FontWeight.w700, color: AppColors.success),
+        )),
+        DataCell(Text(
+          failures.toString(),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: failures > 0 ? AppColors.error : Colors.grey,
+          ),
+        )),
+      ],
     );
   }
 }
