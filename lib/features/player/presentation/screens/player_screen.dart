@@ -322,13 +322,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ),
                 )
               else
-                // Controls disabled by the teacher: keep play/pause so the
-                // student can still start and replay sentences.
+                // Controls disabled by the teacher: keep play/pause and the
+                // speed selector so the student can still start/replay
+                // sentences and adjust the listening speed.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      _SpeedRow(speed: playback.speed),
+                      const SizedBox(height: 12),
                       PlaybackControls(
                         playbackState: playback,
                         playPauseOnly: true,
