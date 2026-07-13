@@ -35,8 +35,8 @@ class StudentResultsView extends StatelessWidget {
     final scoreColor = score == total
         ? AppColors.success
         : score >= (total * 0.6).ceil()
-            ? AppColors.warning
-            : AppColors.error;
+        ? AppColors.warning
+        : AppColors.error;
 
     return ListView(
       controller: scrollController,
@@ -53,9 +53,7 @@ class StudentResultsView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                score == total
-                    ? Icons.check_circle
-                    : Icons.bar_chart_rounded,
+                score == total ? Icons.check_circle : Icons.bar_chart_rounded,
                 color: scoreColor,
               ),
               const SizedBox(width: 10),
@@ -76,15 +74,16 @@ class StudentResultsView extends StatelessWidget {
           final idx = e.key;
           final sentence = e.value;
           final answer = answers[idx] ?? '';
-          final isCorrect = answer.isNotEmpty &&
+          final isCorrect =
+              answer.isNotEmpty &&
               sentenceMatches(answer, sentence.text, ScoringMode.lenient);
           final isBlank = answer.isEmpty;
 
           final borderColor = isCorrect
               ? AppColors.success
               : isBlank
-                  ? Colors.grey
-                  : AppColors.error;
+              ? Colors.grey
+              : AppColors.error;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -92,8 +91,7 @@ class StudentResultsView extends StatelessWidget {
             decoration: BoxDecoration(
               color: borderColor.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: borderColor.withValues(alpha: 0.3)),
+              border: Border.all(color: borderColor.withValues(alpha: 0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,8 +102,8 @@ class StudentResultsView extends StatelessWidget {
                       isCorrect
                           ? Icons.check_circle
                           : isBlank
-                              ? Icons.remove_circle_outline
-                              : Icons.cancel,
+                          ? Icons.remove_circle_outline
+                          : Icons.cancel,
                       size: 16,
                       color: borderColor,
                     ),
@@ -125,9 +123,10 @@ class StudentResultsView extends StatelessWidget {
                   Text(
                     sentence.text,
                     style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.success,
-                        fontStyle: FontStyle.italic),
+                      fontSize: 14,
+                      color: AppColors.success,
+                      fontStyle: FontStyle.italic,
+                    ),
                   )
                 else
                   _DiffDisplay(
@@ -155,49 +154,90 @@ class _DiffDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final diff = wordDiff(studentText, expectedText, ScoringMode.lenient);
+    final hasMissing = diff.any((d) => d.status == WordStatus.missing);
+    final hasWrong = diff.any((d) => d.status == WordStatus.wrong);
+    final legend = [
+      if (hasMissing) '⟨word⟩ = missing word',
+      if (hasWrong) 'struck through = wrong word',
+    ].join(' · ');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Your answer:',
-            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-        const SizedBox(height: 3),
+        const _CaptionLabel('Your answer:'),
+        Text(studentText, style: const TextStyle(fontSize: 14)),
+        const SizedBox(height: 6),
+        const _CaptionLabel('Differences:'),
         Wrap(
           spacing: 3,
           runSpacing: 2,
           children: diff.map((d) {
             return switch (d.status) {
-              WordStatus.correct =>
-                Text(d.word, style: const TextStyle(fontSize: 14)),
-              WordStatus.wrong => Text(d.word,
-                  style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.error,
-                      decoration: TextDecoration.lineThrough)),
-              WordStatus.missing => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              WordStatus.correct => Text(
+                d.word,
+                style: const TextStyle(fontSize: 14),
+              ),
+              WordStatus.wrong => Text(
+                d.word,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.error,
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+              WordStatus.missing => Tooltip(
+                message: 'Missing word',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.warning.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                        color: AppColors.warning.withValues(alpha: 0.5)),
+                      color: AppColors.warning.withValues(alpha: 0.5),
+                    ),
                   ),
-                  child: Text(d.word,
-                      style: const TextStyle(
-                          fontSize: 14, color: AppColors.warning)),
+                  child: Text(
+                    '⟨${d.word}⟩',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.warning,
+                    ),
+                  ),
                 ),
+              ),
             };
           }).toList(),
         ),
+        if (legend.isNotEmpty) ...[
+          const SizedBox(height: 3),
+          Text(legend, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        ],
         const SizedBox(height: 6),
-        Text('Correct:',
-            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-        const SizedBox(height: 3),
-        Text(expectedText,
-            style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.success,
-                fontStyle: FontStyle.italic)),
+        const _CaptionLabel('Correct:'),
+        Text(
+          expectedText,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.success,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
       ],
     );
   }
+}
+
+/// Small grey caption above each block of the diff display.
+class _CaptionLabel extends StatelessWidget {
+  const _CaptionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 3),
+    child: Text(text, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+  );
 }
