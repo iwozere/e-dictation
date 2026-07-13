@@ -25,8 +25,10 @@ import '../widgets/sentence_list.dart';
 /// (authenticated user / teacher preview).
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key, this.shareCode, this.dictationId})
-      : assert(shareCode != null || dictationId != null,
-            'One of shareCode or dictationId must be provided');
+    : assert(
+        shareCode != null || dictationId != null,
+        'One of shareCode or dictationId must be provided',
+      );
 
   final String? shareCode;
   final String? dictationId;
@@ -142,18 +144,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_savingAttempt || _currentDictation == null) return;
     setState(() => _savingAttempt = true);
     try {
-      final (_, failure) = await ref.read(attemptsRepositoryProvider).saveAttempt(
-        dictationId: _currentDictation!.id,
-        studentName: _studentName,
-        studentPinHash: _studentPinHash,
-        answers: Map.of(_answers),
-        startedAt: _startedAt,
-      );
+      final (_, failure) = await ref
+          .read(attemptsRepositoryProvider)
+          .saveAttempt(
+            dictationId: _currentDictation!.id,
+            studentName: _studentName,
+            studentPinHash: _studentPinHash,
+            answers: Map.of(_answers),
+            startedAt: _startedAt,
+          );
       if (!mounted) return;
       if (failure != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Could not save results. Tap Retry to try again.'),
+            content: const Text(
+              'Could not save results. Tap Retry to try again.',
+            ),
             duration: const Duration(seconds: 8),
             action: SnackBarAction(label: 'Retry', onPressed: _saveAttempt),
           ),
@@ -227,15 +233,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           );
         }
 
-        final sentencesWithAudio =
-            dictation.sentences.where((s) => s.hasAudio).length;
+        final sentencesWithAudio = dictation.sentences
+            .where((s) => s.hasAudio)
+            .length;
         if (_loadedDictationId != dictation.id ||
             _loadedSentencesWithAudio != sentencesWithAudio) {
           _loadedDictationId = dictation.id;
           _loadedSentencesWithAudio = sentencesWithAudio;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            ref.read(playbackNotifierProvider.notifier).loadDictation(
+            ref
+                .read(playbackNotifierProvider.notifier)
+                .loadDictation(
                   dictation.sentences,
                   defaultPauseSecs: dictation.defaultPauseSecs,
                 );
@@ -243,8 +252,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         }
 
         final playback = ref.watch(playbackNotifierProvider);
-        final showControls =
-            !_isStudentView || dictation.allowStudentControls;
+        final showControls = !_isStudentView || dictation.allowStudentControls;
 
         return Scaffold(
           appBar: AppBar(
@@ -308,19 +316,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       const SizedBox(height: 8),
                       Text(
                         _statusLabel(playback),
-                        style: TextStyle(
-                            color: Colors.grey[600], fontSize: 12),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
                   ),
                 )
               else
+                // Controls disabled by the teacher: keep play/pause so the
+                // student can still start and replay sentences.
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    _statusLabel(playback),
-                    style:
-                        TextStyle(color: Colors.grey[600], fontSize: 12),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PlaybackControls(
+                        playbackState: playback,
+                        playPauseOnly: true,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _statusLabel(playback),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -344,16 +362,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   String _statusLabel(PlaybackStateModel state) => switch (state.status) {
-        PlaybackStatus.idle => 'Press play to start',
-        PlaybackStatus.loading => 'Loading…',
-        PlaybackStatus.playing =>
-          'Sentence ${state.currentIndex + 1} of ${state.sentences.length}',
-        PlaybackStatus.paused => 'Paused',
-        PlaybackStatus.pauseBetweenSentences =>
-          'Next sentence in ${state.pauseDurationSecs}s…',
-        PlaybackStatus.completed => 'Completed',
-        PlaybackStatus.error => state.errorMessage ?? 'Error',
-      };
+    PlaybackStatus.idle => 'Press play to start',
+    PlaybackStatus.loading => 'Loading…',
+    PlaybackStatus.playing =>
+      'Sentence ${state.currentIndex + 1} of ${state.sentences.length}',
+    PlaybackStatus.paused => 'Paused',
+    PlaybackStatus.pauseBetweenSentences =>
+      'Next sentence in ${state.pauseDurationSecs}s…',
+    PlaybackStatus.completed => 'Completed',
+    PlaybackStatus.error => state.errorMessage ?? 'Error',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -431,13 +449,11 @@ class _IdentityPanelState extends State<_IdentityPanel> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.text_fields,
-                        size: 16, color: Colors.grey[500]),
+                    Icon(Icons.text_fields, size: 16, color: Colors.grey[500]),
                     const SizedBox(width: 6),
                     Text(
                       '${widget.wordCount} words',
-                      style:
-                          TextStyle(color: Colors.grey[500], fontSize: 13),
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
                     ),
                   ],
                 ),
@@ -478,10 +494,14 @@ class _IdentityPanelState extends State<_IdentityPanel> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text('Start Dictation',
-                          style: TextStyle(fontSize: 16)),
+                      : const Text(
+                          'Start Dictation',
+                          style: TextStyle(fontSize: 16),
+                        ),
                 ),
                 const SizedBox(height: 8),
                 TextButton.icon(
@@ -528,15 +548,17 @@ class _TypingPanel extends StatelessWidget {
               child: TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText:
-                      'Type sentence ${currentIndex + 1} of $totalCount…',
+                  hintText: 'Type sentence ${currentIndex + 1} of $totalCount…',
                   border: const OutlineInputBorder(),
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   isDense: true,
                 ),
-                textInputAction:
-                    isLast ? TextInputAction.done : TextInputAction.next,
+                textInputAction: isLast
+                    ? TextInputAction.done
+                    : TextInputAction.next,
                 onSubmitted: (_) => onSubmit(),
               ),
             ),
@@ -548,7 +570,9 @@ class _TypingPanel extends StatelessWidget {
                 foregroundColor: Colors.white,
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 11),
+                  horizontal: 16,
+                  vertical: 11,
+                ),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(isLast ? 'Finish' : 'Next →'),
@@ -577,11 +601,11 @@ class _SpeedRow extends ConsumerWidget {
         const SizedBox(width: 6),
         ...AppConfig.playbackSpeeds.map(
           (s) => GestureDetector(
-            onTap: () => ref.read(playbackNotifierProvider.notifier).setSpeed(s),
+            onTap: () =>
+                ref.read(playbackNotifierProvider.notifier).setSpeed(s),
             child: Container(
               margin: const EdgeInsets.only(right: 4),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: speed == s
                     ? AppColors.primary
@@ -617,13 +641,11 @@ class _PauseRow extends ConsumerWidget {
         const SizedBox(width: 6),
         ...AppConfig.pauseDurations.map(
           (s) => GestureDetector(
-            onTap: () => ref
-                .read(playbackNotifierProvider.notifier)
-                .setPauseDuration(s),
+            onTap: () =>
+                ref.read(playbackNotifierProvider.notifier).setPauseDuration(s),
             child: Container(
               margin: const EdgeInsets.only(right: 4),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: pauseSecs == s
                     ? AppColors.secondary

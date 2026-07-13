@@ -39,8 +39,7 @@ class AllAttemptsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.assignment_outlined,
-                      size: 48, color: Colors.grey),
+                  Icon(Icons.assignment_outlined, size: 48, color: Colors.grey),
                   SizedBox(height: 12),
                   Text(
                     'No completed dictations yet.',
@@ -51,12 +50,15 @@ class AllAttemptsScreen extends ConsumerWidget {
             );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: attempts.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, i) =>
-                _AttemptTile(attempt: attempts[i]),
+          // SelectionArea makes attempt details selectable/copyable on web,
+          // where canvas-rendered text is otherwise not selectable.
+          return SelectionArea(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: attempts.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, i) => _AttemptTile(attempt: attempts[i]),
+            ),
           );
         },
       ),
@@ -77,8 +79,8 @@ class _AttemptTile extends StatelessWidget {
     final scoreColor = attempt.scoreCorrect == attempt.scoreTotal
         ? AppColors.success
         : attempt.scoreCorrect >= (attempt.scoreTotal * 0.6).ceil()
-            ? AppColors.warning
-            : AppColors.error;
+        ? AppColors.warning
+        : AppColors.error;
 
     final startLabel = attempt.startedAt != null
         ? _dateFmt.format(attempt.startedAt!)
@@ -115,8 +117,7 @@ class _AttemptTile extends StatelessWidget {
                       ),
                       if (attempt.dictationTitle != null) ...[
                         const SizedBox(width: 6),
-                        const Text('·',
-                            style: TextStyle(color: Colors.grey)),
+                        const Text('·', style: TextStyle(color: Colors.grey)),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -133,19 +134,27 @@ class _AttemptTile extends StatelessWidget {
                   // Timestamps + score
                   Row(
                     children: [
-                      Icon(Icons.play_arrow_rounded,
-                          size: 13, color: Colors.grey[500]),
+                      Icon(
+                        Icons.play_arrow_rounded,
+                        size: 13,
+                        color: Colors.grey[500],
+                      ),
                       const SizedBox(width: 2),
-                      Text(startLabel,
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey[500])),
+                      Text(
+                        startLabel,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
                       const SizedBox(width: 10),
-                      Icon(Icons.flag_rounded,
-                          size: 13, color: Colors.grey[500]),
+                      Icon(
+                        Icons.flag_rounded,
+                        size: 13,
+                        color: Colors.grey[500],
+                      ),
                       const SizedBox(width: 2),
-                      Text(finishLabel,
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey[500])),
+                      Text(
+                        finishLabel,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         '${attempt.scoreCorrect}/${attempt.scoreTotal}',
@@ -228,14 +237,15 @@ class _AttemptPreviewSheet extends ConsumerWidget {
                           ? attempt.studentName!
                           : 'Anonymous',
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 16),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   if (attempt.dictationTitle != null)
                     Text(
                       attempt.dictationTitle!,
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     ),
                 ],
               ),
@@ -245,8 +255,7 @@ class _AttemptPreviewSheet extends ConsumerWidget {
           // Body
           Expanded(
             child: detailAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -260,10 +269,12 @@ class _AttemptPreviewSheet extends ConsumerWidget {
                   ],
                 ),
               ),
-              data: (attempt) => StudentResultsView(
-                sentences: attempt.sentences,
-                answers: attempt.answers,
-                scrollController: controller,
+              data: (attempt) => SelectionArea(
+                child: StudentResultsView(
+                  sentences: attempt.sentences,
+                  answers: attempt.answers,
+                  scrollController: controller,
+                ),
               ),
             ),
           ),

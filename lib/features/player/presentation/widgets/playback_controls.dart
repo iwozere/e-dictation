@@ -6,17 +6,42 @@ import '../../domain/playback_state_model.dart';
 import '../providers/playback_notifier.dart';
 
 /// The main transport controls: previous · play/pause · next · repeat.
+///
+/// With [playPauseOnly] set, renders just the play/pause button — used for
+/// students when the teacher has disabled the full transport controls, so
+/// they can still start and replay sentences.
 class PlaybackControls extends ConsumerWidget {
-  const PlaybackControls({super.key, required this.playbackState});
+  const PlaybackControls({
+    super.key,
+    required this.playbackState,
+    this.playPauseOnly = false,
+  });
+
   final PlaybackStateModel playbackState;
+  final bool playPauseOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(playbackNotifierProvider.notifier);
     final status = playbackState.status;
-    final isPlaying = status == PlaybackStatus.playing ||
+    final isPlaying =
+        status == PlaybackStatus.playing ||
         status == PlaybackStatus.pauseBetweenSentences;
     final isLoading = status == PlaybackStatus.loading;
+
+    if (playPauseOnly) {
+      return _PlayPauseButton(
+        isPlaying: isPlaying,
+        isLoading: isLoading,
+        onTap: () {
+          if (isPlaying) {
+            notifier.pause();
+          } else {
+            notifier.play();
+          }
+        },
+      );
+    }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -33,7 +58,9 @@ class PlaybackControls extends ConsumerWidget {
         _ControlButton(
           icon: Icons.replay_rounded,
           size: 28,
-          onTap: playbackState.sentences.isNotEmpty ? notifier.repeatCurrent : null,
+          onTap: playbackState.sentences.isNotEmpty
+              ? notifier.repeatCurrent
+              : null,
         ),
         const SizedBox(width: 16),
 
@@ -112,9 +139,7 @@ class _PlayPauseButton extends StatelessWidget {
                 ),
               )
             : Icon(
-                isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
+                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 color: Colors.white,
                 size: 36,
               ),

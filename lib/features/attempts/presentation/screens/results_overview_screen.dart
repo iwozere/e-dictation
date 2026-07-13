@@ -32,19 +32,24 @@ class ResultsOverviewScreen extends ConsumerWidget {
             return const EmptyState(
               icon: Icons.assessment_outlined,
               title: 'No submissions yet',
-              subtitle: 'Results will appear here once students complete '
+              subtitle:
+                  'Results will appear here once students complete '
                   'one of your dictations.',
             );
           }
 
           final groups = _groupByStudent(attempts);
 
+          // SelectionArea makes student names/results selectable/copyable on
+          // web, where canvas-rendered text is otherwise not selectable.
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(allAttemptsProvider),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: groups.length,
-              itemBuilder: (_, i) => _StudentGroupTile(group: groups[i]),
+            child: SelectionArea(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: groups.length,
+                itemBuilder: (_, i) => _StudentGroupTile(group: groups[i]),
+              ),
             ),
           );
         },
@@ -63,8 +68,10 @@ class ResultsOverviewScreen extends ConsumerWidget {
         .toList();
     // Each group's attempts are already newest-first (query order); sort
     // groups by their most recent attempt.
-    groups.sort((a, b) =>
-        b.attempts.first.completedAt.compareTo(a.attempts.first.completedAt));
+    groups.sort(
+      (a, b) =>
+          b.attempts.first.completedAt.compareTo(a.attempts.first.completedAt),
+    );
     return groups;
   }
 }
@@ -106,8 +113,10 @@ class _StudentGroupTile extends StatelessWidget {
             ),
           ),
         ),
-        title: Text(group.name,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          group.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Text(
           '$count attempt${count == 1 ? '' : 's'} · avg $avg%',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -127,8 +136,9 @@ class _AttemptRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date =
-        DateFormat('d MMM HH:mm').format(attempt.completedAt.toLocal());
+    final date = DateFormat(
+      'd MMM HH:mm',
+    ).format(attempt.completedAt.toLocal());
     final color = _scoreColor(attempt.scoreCorrect, attempt.scoreTotal);
 
     return ListTile(
@@ -139,8 +149,10 @@ class _AttemptRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
-      subtitle: Text(date,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+      subtitle: Text(
+        date,
+        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+      ),
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
@@ -150,11 +162,14 @@ class _AttemptRow extends StatelessWidget {
         child: Text(
           '${attempt.scoreCorrect}/${attempt.scoreTotal}',
           style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w700, color: color),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
         ),
       ),
-      onTap: () => context
-          .go('/teacher/dictations/${attempt.dictationId}/results'),
+      onTap: () =>
+          context.go('/teacher/dictations/${attempt.dictationId}/results'),
     );
   }
 }

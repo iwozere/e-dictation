@@ -17,10 +17,12 @@ class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});
 
   @override
-  ConsumerState<TeacherDashboardScreen> createState() => _TeacherDashboardScreenState();
+  ConsumerState<TeacherDashboardScreen> createState() =>
+      _TeacherDashboardScreenState();
 }
 
-class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen> {
+class _TeacherDashboardScreenState
+    extends ConsumerState<TeacherDashboardScreen> {
   String? _selectedClassId;
   Timer? _pollTimer;
 
@@ -32,7 +34,9 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
 
   void _updatePolling(List<Dictation> dictations) {
     final hasPending = dictations.any(
-      (d) => d.ttsStatus == TtsStatus.pending || d.ttsStatus == TtsStatus.processing,
+      (d) =>
+          d.ttsStatus == TtsStatus.pending ||
+          d.ttsStatus == TtsStatus.processing,
     );
     if (hasPending && _pollTimer == null) {
       _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -46,7 +50,9 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final dictationsAsync = ref.watch(teacherDictationsProvider(_selectedClassId));
+    final dictationsAsync = ref.watch(
+      teacherDictationsProvider(_selectedClassId),
+    );
 
     ref.listen(teacherDictationsProvider(_selectedClassId), (_, next) {
       next.whenData(_updatePolling);
@@ -114,11 +120,15 @@ class _DictationGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-      itemCount: dictations.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => DictationCard(dictation: dictations[i]),
+    // SelectionArea makes card labels selectable/copyable on web, where
+    // canvas-rendered text is otherwise not selectable.
+    return SelectionArea(
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+        itemCount: dictations.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => DictationCard(dictation: dictations[i]),
+      ),
     );
   }
 }

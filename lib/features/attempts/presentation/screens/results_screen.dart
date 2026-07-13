@@ -20,9 +20,8 @@ class ResultsScreen extends ConsumerWidget {
     final attemptsAsync = ref.watch(dictationAttemptsProvider(dictationId));
 
     return dictationAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('Results')),
         body: ErrorView(message: 'Could not load dictation.'),
@@ -42,21 +41,25 @@ class ResultsScreen extends ConsumerWidget {
         ),
         data: (attempts) => Scaffold(
           appBar: _appBar(context, dictation.title, ref, attempts),
-          body: attempts.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No submissions yet.',
-                    style: TextStyle(color: Colors.grey),
+          // SelectionArea makes attempt names/answers selectable/copyable on
+          // web, where canvas-rendered text is otherwise not selectable.
+          body: SelectionArea(
+            child: attempts.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No submissions yet.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: attempts.length,
+                    itemBuilder: (_, i) => _AttemptTile(
+                      attempt: attempts[i],
+                      sentences: dictation.sentences,
+                    ),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: attempts.length,
-                  itemBuilder: (_, i) => _AttemptTile(
-                    attempt: attempts[i],
-                    sentences: dictation.sentences,
-                  ),
-                ),
+          ),
         ),
       ),
     );
@@ -75,7 +78,8 @@ class ResultsScreen extends ConsumerWidget {
         .length;
 
     return AppBar(
-      title: Text(title),
+      // SelectionArea so the dictation title can be selected/copied on web.
+      title: SelectionArea(child: Text(title)),
       bottom: attempts.isEmpty
           ? null
           : PreferredSize(
@@ -98,10 +102,7 @@ class ResultsScreen extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _AttemptTile extends StatelessWidget {
-  const _AttemptTile({
-    required this.attempt,
-    required this.sentences,
-  });
+  const _AttemptTile({required this.attempt, required this.sentences});
 
   final Attempt attempt;
   final List<DictationSentence> sentences;
@@ -109,7 +110,9 @@ class _AttemptTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scoreColor = _scoreColor(attempt.scoreCorrect, attempt.scoreTotal);
-    final date = DateFormat('d MMM HH:mm').format(attempt.completedAt.toLocal());
+    final date = DateFormat(
+      'd MMM HH:mm',
+    ).format(attempt.completedAt.toLocal());
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -136,12 +139,18 @@ class _AttemptTile extends StatelessWidget {
             if (attempt.hasPinSet)
               const Tooltip(
                 message: 'PIN set',
-                child: Icon(Icons.lock_outline, size: 14, color: AppColors.primary),
+                child: Icon(
+                  Icons.lock_outline,
+                  size: 14,
+                  color: AppColors.primary,
+                ),
               ),
           ],
         ),
-        subtitle: Text(date,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        subtitle: Text(
+          date,
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
         children: [
           const Divider(height: 1),
           AttemptBreakdown(attempt: attempt, sentences: sentences),
