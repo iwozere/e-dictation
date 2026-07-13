@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/title_split.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
 import '../../../classes/presentation/providers/classes_provider.dart';
 import '../../../../shared/widgets/ocr_image_button.dart';
@@ -15,7 +16,8 @@ class EditDictationScreen extends ConsumerStatefulWidget {
   final String dictationId;
 
   @override
-  ConsumerState<EditDictationScreen> createState() => _EditDictationScreenState();
+  ConsumerState<EditDictationScreen> createState() =>
+      _EditDictationScreenState();
 }
 
 class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
@@ -70,17 +72,13 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
           _language != _originalLanguage);
 
   void _applyOcrText(String text) {
-    final lines = text.split('\n');
-    final firstLine = lines.first.trim();
-    final rest = lines.skip(1).join('\n').trimLeft();
-
-    if (_titleCtrl.text.trim().isEmpty &&
-        firstLine.isNotEmpty &&
-        firstLine.length <= 80 &&
-        rest.isNotEmpty) {
+    final split = _titleCtrl.text.trim().isEmpty
+        ? splitLeadingTitle(text)
+        : null;
+    if (split != null) {
       setState(() {
-        _titleCtrl.text = firstLine;
-        _textCtrl.text = rest;
+        _titleCtrl.text = split.title;
+        _textCtrl.text = split.body;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Title auto-filled from scan')),
@@ -141,9 +139,8 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
     final dictationAsync = ref.watch(dictationByIdProvider(widget.dictationId));
 
     return dictationAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('Edit Dictation')),
         body: const Center(child: Text('Could not load dictation.')),
@@ -186,24 +183,31 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                       if (_ttsWillRegenerate) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.warning.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                                color:
-                                    AppColors.warning.withValues(alpha: 0.45)),
+                              color: AppColors.warning.withValues(alpha: 0.45),
+                            ),
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.info_outline,
-                                  color: AppColors.warning, size: 18),
+                              Icon(
+                                Icons.info_outline,
+                                color: AppColors.warning,
+                                size: 18,
+                              ),
                               SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   'Text or language changed — all audio will be regenerated (~30 s).',
                                   style: TextStyle(
-                                      fontSize: 13, color: AppColors.warning),
+                                    fontSize: 13,
+                                    color: AppColors.warning,
+                                  ),
                                 ),
                               ),
                             ],
@@ -228,34 +232,43 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                           Expanded(
                             child: DropdownButtonFormField<DictationLanguage>(
                               initialValue: _language,
-                              decoration:
-                                  const InputDecoration(labelText: 'Language'),
+                              decoration: const InputDecoration(
+                                labelText: 'Language',
+                              ),
                               items: DictationLanguage.values
-                                  .map((l) => DropdownMenuItem(
-                                        value: l,
-                                        child: Text(l.label),
-                                      ))
+                                  .map(
+                                    (l) => DropdownMenuItem(
+                                      value: l,
+                                      child: Text(l.label),
+                                    ),
+                                  )
                                   .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _language = v!),
+                              onChanged: (v) => setState(() => _language = v!),
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: DropdownButtonFormField<DictationDifficulty?>(
-                              initialValue: _difficulty,
-                              decoration: const InputDecoration(
-                                  labelText: 'Difficulty'),
-                              items: [
-                                const DropdownMenuItem(
-                                    value: null, child: Text('—')),
-                                ...DictationDifficulty.values.map((d) =>
-                                    DropdownMenuItem(
-                                        value: d, child: Text(d.label))),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _difficulty = v),
-                            ),
+                            child:
+                                DropdownButtonFormField<DictationDifficulty?>(
+                                  initialValue: _difficulty,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Difficulty',
+                                  ),
+                                  items: [
+                                    const DropdownMenuItem(
+                                      value: null,
+                                      child: Text('—'),
+                                    ),
+                                    ...DictationDifficulty.values.map(
+                                      (d) => DropdownMenuItem(
+                                        value: d,
+                                        child: Text(d.label),
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (v) =>
+                                      setState(() => _difficulty = v),
+                                ),
                           ),
                         ],
                       ),
@@ -270,19 +283,21 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                             : DropdownButtonFormField<String?>(
                                 initialValue: _classId,
                                 decoration: const InputDecoration(
-                                    labelText:
-                                        'Assign to class (optional)'),
+                                  labelText: 'Assign to class (optional)',
+                                ),
                                 items: [
                                   const DropdownMenuItem(
-                                      value: null,
-                                      child: Text('No class')),
-                                  ...classes.map((c) => DropdownMenuItem(
-                                        value: c.id,
-                                        child: Text(c.name),
-                                      )),
+                                    value: null,
+                                    child: Text('No class'),
+                                  ),
+                                  ...classes.map(
+                                    (c) => DropdownMenuItem(
+                                      value: c.id,
+                                      child: Text(c.name),
+                                    ),
+                                  ),
                                 ],
-                                onChanged: (v) =>
-                                    setState(() => _classId = v),
+                                onChanged: (v) => setState(() => _classId = v),
                               ),
                       ),
                       const SizedBox(height: 20),
@@ -290,9 +305,10 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                       // Pause duration
                       Row(
                         children: [
-                          const Text('Pause between sentences:',
-                              style:
-                                  TextStyle(fontWeight: FontWeight.w500)),
+                          const Text(
+                            'Pause between sentences:',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
                           const SizedBox(width: 12),
                           ...AppConfig.pauseDurations.map(
                             (s) => Padding(
@@ -304,9 +320,7 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                                     setState(() => _pauseSecs = s),
                                 selectedColor: AppColors.primary,
                                 labelStyle: TextStyle(
-                                  color: _pauseSecs == s
-                                      ? Colors.white
-                                      : null,
+                                  color: _pauseSecs == s ? Colors.white : null,
                                 ),
                               ),
                             ),
@@ -318,11 +332,13 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                       // Student controls toggle
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Allow student controls',
-                            style:
-                                TextStyle(fontWeight: FontWeight.w500)),
+                        title: const Text(
+                          'Allow student controls',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
                         subtitle: const Text(
-                            'Students can pause, replay and skip sentences'),
+                          'Students can pause, replay and skip sentences',
+                        ),
                         value: _allowStudentControls,
                         onChanged: (v) =>
                             setState(() => _allowStudentControls = v),
@@ -337,9 +353,7 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                             'Dictation text',
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
-                          OcrImageButton(
-                            onTextExtracted: _applyOcrText,
-                          ),
+                          OcrImageButton(onTextExtracted: _applyOcrText),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -351,10 +365,9 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                           hintText: 'Paste or type the dictation text here…',
                         ),
                         onChanged: (_) => setState(() {}),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty)
-                                ? 'Text is required'
-                                : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Text is required'
+                            : null,
                       ),
                       const SizedBox(height: 4),
                       Align(
@@ -374,7 +387,9 @@ class _EditDictationScreenState extends ConsumerState<EditDictationScreen> {
                         Text(
                           'Text exceeds ${AppConfig.maxDictationWords}-word limit.',
                           style: const TextStyle(
-                              color: AppColors.error, fontSize: 13),
+                            color: AppColors.error,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                       const SizedBox(height: 32),

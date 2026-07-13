@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/title_split.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
 import '../../../../shared/widgets/ocr_image_button.dart';
 import '../../../classes/presentation/providers/classes_provider.dart';
@@ -31,6 +32,7 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
   int _pauseSecs = 5;
   bool _allowStudentControls = true;
   bool _saving = false;
+  int _lastTextLength = 0;
 
   @override
   void dispose() {
@@ -48,27 +50,43 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
   bool get _overLimit => _wordCount > AppConfig.maxDictationWords;
 
   void _applyOcrText(String text) {
-    final lines = text.split('\n');
-    final firstLine = lines.first.trim();
-    final rest = lines.skip(1).join('\n').trimLeft();
-
-    // If the title field is empty and the first line is short enough to be a
-    // title (≤80 chars, followed by more content), auto-split.
-    if (_titleCtrl.text.trim().isEmpty &&
-        firstLine.isNotEmpty &&
-        firstLine.length <= 80 &&
-        rest.isNotEmpty) {
-      setState(() {
-        _titleCtrl.text = firstLine;
-        _textCtrl.text = rest;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title auto-filled from scan')),
-      );
-    } else {
+    if (!_autoFillTitle(text, source: 'scan')) {
       setState(() => _textCtrl.text = text);
     }
+    _lastTextLength = _textCtrl.text.length;
     _textFocusNode.requestFocus();
+  }
+
+  /// Moves the leading title line of [text] into the empty Title field and
+  /// keeps the rest as the dictation text. Returns false when the Title
+  /// field is already filled or nothing looked like a title.
+  bool _autoFillTitle(String text, {required String source}) {
+    if (_titleCtrl.text.trim().isNotEmpty) return false;
+    final split = splitLeadingTitle(text);
+    if (split == null) return false;
+    setState(() {
+      _titleCtrl.text = split.title;
+      _textCtrl.value = TextEditingValue(
+        text: split.body,
+        selection: TextSelection.collapsed(offset: split.body.length),
+      );
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Title auto-filled from $source')));
+    return true;
+  }
+
+  /// A single large insertion is a paste — try to peel the first line off
+  /// into the Title field, mirroring the OCR behaviour.
+  void _onTextChanged(String text) {
+    final inserted = text.length - _lastTextLength;
+    _lastTextLength = text.length;
+    if (inserted >= 10 && _autoFillTitle(text, source: 'first line')) {
+      _lastTextLength = _textCtrl.text.length;
+      return;
+    }
+    setState(() {}); // refresh word count
   }
 
   Future<void> _save() async {
@@ -119,7 +137,9 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('New Dictation'),
-          leading: BackButton(onPressed: () => context.go(AppRoute.teacherDashboard)),
+          leading: BackButton(
+            onPressed: () => context.go(AppRoute.teacherDashboard),
+          ),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -146,8 +166,9 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                   TextFormField(
                     controller: _titleCtrl,
                     decoration: const InputDecoration(labelText: 'Title'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Title is required' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Title is required'
+                        : null,
                   ),
                   const SizedBox(height: 20),
 
@@ -157,12 +178,16 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                       Expanded(
                         child: DropdownButtonFormField<DictationLanguage>(
                           initialValue: _language,
-                          decoration: const InputDecoration(labelText: 'Language'),
+                          decoration: const InputDecoration(
+                            labelText: 'Language',
+                          ),
                           items: DictationLanguage.values
-                              .map((l) => DropdownMenuItem(
-                                    value: l,
-                                    child: Text(l.label),
-                                  ))
+                              .map(
+                                (l) => DropdownMenuItem(
+                                  value: l,
+                                  child: Text(l.label),
+                                ),
+                              )
                               .toList(),
                           onChanged: (v) => setState(() => _language = v!),
                         ),
@@ -171,13 +196,20 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                       Expanded(
                         child: DropdownButtonFormField<DictationDifficulty?>(
                           initialValue: _difficulty,
-                          decoration: const InputDecoration(labelText: 'Difficulty'),
+                          decoration: const InputDecoration(
+                            labelText: 'Difficulty',
+                          ),
                           items: [
                             const DropdownMenuItem(
-                                value: null, child: Text('—')),
-                            ...DictationDifficulty.values.map((d) =>
-                                DropdownMenuItem(
-                                    value: d, child: Text(d.label))),
+                              value: null,
+                              child: Text('—'),
+                            ),
+                            ...DictationDifficulty.values.map(
+                              (d) => DropdownMenuItem(
+                                value: d,
+                                child: Text(d.label),
+                              ),
+                            ),
                           ],
                           onChanged: (v) => setState(() => _difficulty = v),
                         ),
@@ -194,14 +226,20 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                         ? const SizedBox.shrink()
                         : DropdownButtonFormField<String?>(
                             initialValue: _classId,
-                            decoration:
-                                const InputDecoration(labelText: 'Assign to class (optional)'),
+                            decoration: const InputDecoration(
+                              labelText: 'Assign to class (optional)',
+                            ),
                             items: [
-                              const DropdownMenuItem(value: null, child: Text('No class')),
-                              ...classes.map((c) => DropdownMenuItem(
-                                    value: c.id,
-                                    child: Text(c.name),
-                                  )),
+                              const DropdownMenuItem(
+                                value: null,
+                                child: Text('No class'),
+                              ),
+                              ...classes.map(
+                                (c) => DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text(c.name),
+                                ),
+                              ),
                             ],
                             onChanged: (v) => setState(() => _classId = v),
                           ),
@@ -211,8 +249,10 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                   // Pause duration
                   Row(
                     children: [
-                      const Text('Pause between sentences:',
-                          style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Text(
+                        'Pause between sentences:',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(width: 12),
                       ...AppConfig.pauseDurations.map(
                         (s) => Padding(
@@ -235,10 +275,13 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                   // Student controls toggle
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Allow student controls',
-                        style: TextStyle(fontWeight: FontWeight.w500)),
+                    title: const Text(
+                      'Allow student controls',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
                     subtitle: const Text(
-                        'Students can pause, replay and skip sentences'),
+                      'Students can pause, replay and skip sentences',
+                    ),
                     value: _allowStudentControls,
                     onChanged: (v) => setState(() => _allowStudentControls = v),
                   ),
@@ -267,9 +310,10 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                     decoration: const InputDecoration(
                       hintText: 'Paste or type the dictation text here…',
                     ),
-                    onChanged: (_) => setState(() {}),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Text is required' : null,
+                    onChanged: _onTextChanged,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Text is required'
+                        : null,
                   ),
                   const SizedBox(height: 4),
                   Align(
@@ -286,7 +330,10 @@ class _CreateDictationScreenState extends ConsumerState<CreateDictationScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'Text exceeds ${AppConfig.maxDictationWords}-word limit.',
-                      style: const TextStyle(color: AppColors.error, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 32),
