@@ -6,8 +6,8 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/title_split.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
-import '../../../classes/presentation/providers/classes_provider.dart';
 import '../../../../shared/widgets/ocr_image_button.dart';
+import '../../../classes/presentation/providers/classes_provider.dart';
 import '../../domain/dictation.dart';
 import '../providers/dictations_provider.dart';
 
