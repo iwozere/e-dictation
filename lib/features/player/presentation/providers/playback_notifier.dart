@@ -170,9 +170,72 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
     await _jumpTo(index);
   }
 
+  /// Changes the target playback speed.
+  ///
+  /// Real-time [AudioPlayer.setSpeed] is only ever used to speed audio up
+  /// (rate ≥ 1.0) — never to slow it down, since browsers' built-in
+  /// time-stretch algorithms produce clearly audible artifacts when slowing
+  /// audio down. Speeds below 1x instead switch to the sentence's
+  /// pre-generated slow variant (native TTS `speakingRate=0.5`) and speed
+  /// *that* up to reach the target, e.g. 0.75x plays the slow file at 1.5x.
+  /// See [_resolveAudioSource].
   Future<void> setSpeed(double speed) async {
+    final previousSpeed = state.speed;
+    if (speed == previousSpeed) return;
     state = state.copyWith(speed: speed);
-    await _player.setSpeed(speed);
+
+    final sentence = state.currentSentence;
+    // Only swap the live player when it actually has this sentence loaded —
+    // i.e. genuinely playing or paused mid-sentence. Otherwise the new speed
+    // just takes effect next time _playSentenceAt runs.
+    final hasLiveSource = sentence != null &&
+        sentence.hasAudio &&
+        _pausedBeforeIndex == null &&
+        (state.status == PlaybackStatus.playing || state.status == PlaybackStatus.paused);
+    if (!hasLiveSource) return;
+
+    final oldSource = _resolveAudioSource(sentence, previousSpeed);
+    final newSource = _resolveAudioSource(sentence, speed);
+
+    if (oldSource.url == newSource.url) {
+      // Same underlying file — just adjust the real-time rate in place.
+      await _player.setSpeed(newSource.rate);
+      return;
+    }
+
+    // Crossing the slow/normal variant boundary: the two files have
+    // different native durations, so preserve the *fractional* position
+    // rather than the literal timestamp.
+    final previousStatus = state.status;
+    final oldDuration = _player.duration;
+    final fraction = (oldDuration != null && oldDuration.inMilliseconds > 0)
+        ? (_player.position.inMilliseconds / oldDuration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    // Mark as loading so a spurious `completed` event fired by the old
+    // source as it's replaced (observed on web) is ignored by
+    // _onSentenceCompleted, exactly as _playSentenceAt already guards against.
+    state = state.copyWith(status: PlaybackStatus.loading);
+
+    try {
+      await _player.pause();
+      await _player.setAudioSource(AudioSource.uri(Uri.parse(newSource.url)));
+      await _player.setSpeed(newSource.rate);
+      final newDuration = _player.duration ?? Duration.zero;
+      await _player.seek(
+        Duration(milliseconds: (fraction * newDuration.inMilliseconds).round()),
+      );
+      state = state.copyWith(status: previousStatus);
+      if (previousStatus == PlaybackStatus.playing) {
+        _startPlayer();
+      }
+    } catch (e) {
+      _log.warning('Error swapping audio source on speed change', e);
+      state = state.copyWith(
+        status: PlaybackStatus.error,
+        errorMessage: 'Failed to load audio. Check your connection.',
+      );
+    }
   }
 
   void setPauseDuration(int seconds) {
@@ -215,8 +278,9 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
       // subsequent play() into a no-op. stop() clears that flag so playback is
       // deterministic.
       await _player.stop();
-      await _player.setAudioSource(AudioSource.uri(Uri.parse(sentence.audioUrl!)));
-      await _player.setSpeed(state.speed);
+      final resolved = _resolveAudioSource(sentence, state.speed);
+      await _player.setAudioSource(AudioSource.uri(Uri.parse(resolved.url)));
+      await _player.setSpeed(resolved.rate);
       await _player.seek(Duration.zero);
 
       if (leadIn) {
@@ -250,6 +314,21 @@ class PlaybackNotifier extends Notifier<PlaybackStateModel> {
         _log.warning('Playback error', e);
       }),
     );
+  }
+
+  /// Picks which pre-generated audio file to play for [speed], and the
+  /// real-time [AudioPlayer.setSpeed] rate to apply on top of it.
+  ///
+  /// Speeds below 1x are reached by speeding up the pre-generated *slow*
+  /// variant (native TTS `speakingRate=0.5`) rather than slowing down the
+  /// normal one — see [setSpeed] doc comment. Falls back to slowing the
+  /// normal variant down in real time if a slow variant hasn't been
+  /// generated yet (e.g. a dictation created before this feature shipped).
+  ({String url, double rate}) _resolveAudioSource(DictationSentence sentence, double speed) {
+    if (speed < 1.0 && sentence.audioUrlSlow != null && sentence.audioUrlSlow!.isNotEmpty) {
+      return (url: sentence.audioUrlSlow!, rate: speed / 0.5);
+    }
+    return (url: sentence.audioUrl!, rate: speed);
   }
 
   Future<void> _jumpTo(int index) async {

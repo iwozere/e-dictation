@@ -118,6 +118,8 @@ class DictationSentence {
     required this.text,
     this.audioUrl,
     this.durationMs,
+    this.audioUrlSlow,
+    this.durationMsSlow,
   });
 
   final String id;
@@ -126,6 +128,13 @@ class DictationSentence {
   final String text;
   final String? audioUrl;
   final int? durationMs;
+
+  /// Pre-generated 0.5x-speed MP3 (native TTS `speakingRate=0.5`), used as the
+  /// base for 0.5x and 0.75x playback so real-time stretching only ever
+  /// speeds audio up, never slows it down. Null for dictations created before
+  /// this variant existed, until they're regenerated.
+  final String? audioUrlSlow;
+  final int? durationMsSlow;
 
   bool get hasAudio => audioUrl != null && audioUrl!.isNotEmpty;
 
@@ -136,6 +145,8 @@ class DictationSentence {
         text: json['text'] as String,
         audioUrl: json['audio_url'] as String?,
         durationMs: json['duration_ms'] as int?,
+        audioUrlSlow: json['audio_url_slow'] as String?,
+        durationMsSlow: json['duration_ms_slow'] as int?,
       );
 }
 

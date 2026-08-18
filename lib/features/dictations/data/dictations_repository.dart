@@ -26,7 +26,7 @@ class DictationsRepository {
       // Filters must precede .order() in the Postgrest builder chain.
       var filterQuery = _client
           .from('dictations')
-          .select('*, tts_status, tts_error, dictation_sentences(id, dictation_id, position, text, audio_url, duration_ms)')
+          .select('*, tts_status, tts_error, dictation_sentences(id, dictation_id, position, text, audio_url, duration_ms, audio_url_slow, duration_ms_slow)')
           .eq('owner_id', ownerId);
 
       if (classId != null) {
@@ -77,7 +77,7 @@ class DictationsRepository {
     try {
       final row = await _client
           .from('dictations')
-          .select('*, tts_status, tts_error, dictation_sentences(id, dictation_id, position, text, audio_url, duration_ms)')
+          .select('*, tts_status, tts_error, dictation_sentences(id, dictation_id, position, text, audio_url, duration_ms, audio_url_slow, duration_ms_slow)')
           .eq('id', id)
           .order('position', referencedTable: 'dictation_sentences')
           .single();

@@ -9,9 +9,17 @@
  *   3. Server-side word-count guard (≤ 500 words)
  *   4. Call Claude API → split into sentence array  (system-prompt isolated)
  *   5. Delete existing sentence rows for the dictation
- *   6. For each sentence, call Google Cloud TTS Neural2 → MP3 bytes
- *   7. Upload MP3 to Supabase Storage: dictations/{dictation_id}/sentence_{n}.mp3
+ *   6. For each sentence, call Google Cloud TTS Neural2 twice → MP3 bytes:
+ *      once at speakingRate=1.0 (normal) and once at speakingRate=0.5 (slow).
+ *      The slow variant is genuinely re-spoken by TTS, not stretched, so it
+ *      stays artifact-free at low playback speeds (see player_screen speed
+ *      selector / PlaybackNotifier, which never slows audio down in real
+ *      time — only ever speeds it up from one of these two base files).
+ *   7. Upload both MP3s to Supabase Storage:
+ *        dictations/{dictation_id}/sentence_{n}.mp3
+ *        dictations/{dictation_id}/sentence_{n}_slow.mp3
  *   8. Insert dictation_sentences rows with audio_url + duration_ms
+ *      and audio_url_slow + duration_ms_slow
  *
  * Environment variables required (set in Supabase Dashboard → Edge Functions → Secrets):
  *   GOOGLE_TTS_API_KEY
@@ -157,23 +165,34 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < sentences.length; i++) {
       const text = sentences[i];
 
-      const { audioContent, durationMs } = await generateTts(text, voice);
+      // Generate both speed variants in parallel — see header comment.
+      const [normal, slow] = await Promise.all([
+        generateTts(text, voice, 1.0),
+        generateTts(text, voice, 0.5),
+      ]);
 
-      // Upload MP3.
       const storagePath = `${dictationId}/sentence_${i}.mp3`;
-      const { error: uploadError } = await supabase.storage
-        .from("dictations")
-        .upload(storagePath, audioContent, {
+      const storagePathSlow = `${dictationId}/sentence_${i}_slow.mp3`;
+
+      const [uploadNormal, uploadSlow] = await Promise.all([
+        supabase.storage.from("dictations").upload(storagePath, normal.audioContent, {
           contentType: "audio/mpeg",
           upsert: true,
-        });
+        }),
+        supabase.storage.from("dictations").upload(storagePathSlow, slow.audioContent, {
+          contentType: "audio/mpeg",
+          upsert: true,
+        }),
+      ]);
 
-      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+      if (uploadNormal.error) throw new Error(`Upload failed: ${uploadNormal.error.message}`);
+      if (uploadSlow.error) throw new Error(`Upload failed: ${uploadSlow.error.message}`);
 
-      // Public URL.
-      const { data: urlData } = supabase.storage
+      // Public URLs.
+      const { data: urlData } = supabase.storage.from("dictations").getPublicUrl(storagePath);
+      const { data: urlDataSlow } = supabase.storage
         .from("dictations")
-        .getPublicUrl(storagePath);
+        .getPublicUrl(storagePathSlow);
 
       // Insert sentence row.
       const { error: insertError } = await supabase
@@ -183,7 +202,9 @@ Deno.serve(async (req: Request) => {
           position: i,
           text: text,
           audio_url: urlData.publicUrl,
-          duration_ms: durationMs,
+          duration_ms: normal.durationMs,
+          audio_url_slow: urlDataSlow.publicUrl,
+          duration_ms_slow: slow.durationMs,
         });
 
       if (insertError) {
@@ -205,12 +226,14 @@ Deno.serve(async (req: Request) => {
 
     // Write the error back so the client can surface it instead of spinning.
     const errorMessage = e instanceof Error ? e.message : String(e);
-    await supabase
-      .from("dictations")
-      .update({ tts_status: "error", tts_error: errorMessage })
-      .eq("id", dictationId)
-      .then(() => {})   // best-effort; ignore secondary failure
-      .catch(() => {});
+    try {
+      await supabase
+        .from("dictations")
+        .update({ tts_status: "error", tts_error: errorMessage })
+        .eq("id", dictationId);
+    } catch {
+      // best-effort; ignore secondary failure
+    }
 
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
@@ -278,7 +301,8 @@ function splitIntoSentences(text: string, _language: string): string[] {
 // ---------------------------------------------------------------------------
 async function generateTts(
   text: string,
-  voice: { languageCode: string; name: string }
+  voice: { languageCode: string; name: string },
+  speakingRate: number
 ): Promise<{ audioContent: Uint8Array; durationMs: number }> {
   const response = await fetch(
     `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_API_KEY}`,
@@ -293,7 +317,7 @@ async function generateTts(
         },
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: 1.0,
+          speakingRate,
         },
       }),
     }
