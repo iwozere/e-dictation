@@ -270,6 +270,10 @@ function splitIntoSentences(text: string, _language: string): string[] {
   s = s.replace(/\bo\.\s*ä\./gi, `o${SENTINEL}ä${SENTINEL}`);
   s = s.replace(/\bz\.\s*T\./gi, `z${SENTINEL}T${SENTINEL}`);
 
+  // Protect multi-component English abbreviations (e.g., i.e.)
+  s = s.replace(/\be\.\s*g\./gi, `e${SENTINEL}g${SENTINEL}`);
+  s = s.replace(/\bi\.\s*e\./gi, `i${SENTINEL}e${SENTINEL}`);
+
   // Protect single-word abbreviations (German, English, French)
   const ABBREVS = [
     "Dr", "Prof", "Hr", "Fr", "Sr", "Jr", "St", "Nr", "Str", "Dipl", "Ing", "Abs",
