@@ -21,6 +21,12 @@ class TeacherShell extends ConsumerWidget {
       route: AppRoute.teacherDashboard,
     ),
     _Tab(
+      icon: Icons.style_outlined,
+      activeIcon: Icons.style,
+      label: 'Cards',
+      route: AppRoute.cardDecks,
+    ),
+    _Tab(
       icon: Icons.group_outlined,
       activeIcon: Icons.group,
       label: 'Classes',
@@ -36,8 +42,9 @@ class TeacherShell extends ConsumerWidget {
 
   int _currentIndex(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
-    if (path.startsWith('/teacher/classes')) return 1;
-    if (path.startsWith('/teacher/results/all')) return 2;
+    if (path.startsWith('/teacher/cards')) return 1;
+    if (path.startsWith('/teacher/classes')) return 2;
+    if (path.startsWith('/teacher/results/all')) return 3;
     return 0;
   }
 
@@ -91,11 +98,13 @@ class TeacherShell extends ConsumerWidget {
                 ),
               ),
               destinations: _tabs
-                  .map((t) => NavigationRailDestination(
-                        icon: Icon(t.icon),
-                        selectedIcon: Icon(t.activeIcon),
-                        label: Text(t.label),
-                      ))
+                  .map(
+                    (t) => NavigationRailDestination(
+                      icon: Icon(t.icon),
+                      selectedIcon: Icon(t.activeIcon),
+                      label: Text(t.label),
+                    ),
+                  )
                   .toList(),
               onDestinationSelected: (i) => context.go(_tabs[i].route),
             ),
@@ -112,11 +121,13 @@ class TeacherShell extends ConsumerWidget {
         selectedIndex: currentIndex,
         onDestinationSelected: (i) => context.go(_tabs[i].route),
         destinations: _tabs
-            .map((t) => NavigationDestination(
-                  icon: Icon(t.icon),
-                  selectedIcon: Icon(t.activeIcon),
-                  label: t.label,
-                ))
+            .map(
+              (t) => NavigationDestination(
+                icon: Icon(t.icon),
+                selectedIcon: Icon(t.activeIcon),
+                label: t.label,
+              ),
+            )
             .toList(),
       ),
     );

@@ -54,3 +54,9 @@ verify_jwt = true  # requires a valid Supabase JWT; ownership is re-checked insi
 
 [functions.ocr_image]
 verify_jwt = true  # requires a valid Supabase JWT (teacher must be signed in)
+
+[functions.parse_card_deck]
+verify_jwt = true  # requires a valid Supabase JWT; ownership is re-checked inside the function
+
+[functions.generate_card_audio]
+verify_jwt = true  # requires a valid Supabase JWT; ownership is re-checked inside the function

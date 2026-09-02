@@ -17,6 +17,10 @@ import '../../features/attempts/presentation/screens/all_attempts_screen.dart';
 import '../../features/attempts/presentation/screens/results_screen.dart';
 import '../../features/attempts/presentation/screens/results_overview_screen.dart';
 import '../../features/attempts/presentation/screens/student_history_screen.dart';
+import '../../features/cards/presentation/screens/card_deck_detail_screen.dart';
+import '../../features/cards/presentation/screens/card_decks_list_screen.dart';
+import '../../features/cards/presentation/screens/card_practice_screen.dart';
+import '../../features/cards/presentation/screens/create_card_deck_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../shared/widgets/teacher_shell.dart';
 
@@ -32,6 +36,14 @@ abstract final class AppRoute {
   static const dictationDetail = '/teacher/dictations/:id';
   static const classes = '/teacher/classes';
   static const createClass = '/teacher/classes/new';
+
+  /// Teacher's card decks (flashcards) list.
+  static const cardDecks = '/teacher/cards';
+  static const createCardDeck = '/teacher/cards/new';
+  static const cardDeckDetail = '/teacher/cards/:id';
+
+  /// Public student practice route — opened by students via share link.
+  static const cardPracticeByCode = '/c/:code';
 
   /// Teacher-wide results overview across all dictations.
   static const resultsOverview = '/teacher/results';
@@ -98,7 +110,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // While auth is resolving, stay put.
       if (isLoading) return null;
 
-      final isPublicRoute = path.startsWith('/d/') ||
+      final isPublicRoute =
+          path.startsWith('/d/') ||
+          path.startsWith('/c/') ||
           path == AppRoute.studentHistory ||
           path == AppRoute.signIn ||
           path == AppRoute.signUp ||
@@ -119,14 +133,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ------------------------------------------------------------------
       // Public / auth routes
       // ------------------------------------------------------------------
-      GoRoute(
-        path: AppRoute.signIn,
-        builder: (_, _) => const SignInScreen(),
-      ),
-      GoRoute(
-        path: AppRoute.signUp,
-        builder: (_, _) => const SignUpScreen(),
-      ),
+      GoRoute(path: AppRoute.signIn, builder: (_, _) => const SignInScreen()),
+      GoRoute(path: AppRoute.signUp, builder: (_, _) => const SignUpScreen()),
 
       // ------------------------------------------------------------------
       // Public player (anonymous student access via share code)
@@ -136,6 +144,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final code = state.pathParameters['code']!;
           return PlayerScreen(shareCode: code);
+        },
+      ),
+
+      // ------------------------------------------------------------------
+      // Public card practice (anonymous student access via share code)
+      // ------------------------------------------------------------------
+      GoRoute(
+        path: AppRoute.cardPracticeByCode,
+        builder: (_, state) {
+          final code = state.pathParameters['code']!;
+          return CardPracticeScreen(shareCode: code);
         },
       ),
 
@@ -219,6 +238,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const AllAttemptsScreen(),
           ),
 
+          // ---- Cards tab ----
+          GoRoute(
+            path: AppRoute.cardDecks,
+            builder: (_, _) => const CardDecksListScreen(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                builder: (_, _) => const CreateCardDeckScreen(),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) {
+                  final id = state.pathParameters['id']!;
+                  return CardDeckDetailScreen(deckId: id);
+                },
+              ),
+            ],
+          ),
+
           // ---- Classes tab ----
           GoRoute(
             path: AppRoute.classes,
@@ -233,10 +271,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (_, state) => Scaffold(
-      body: Center(
-        child: Text('Page not found: ${state.uri}'),
-      ),
-    ),
+    errorBuilder: (_, state) =>
+        Scaffold(body: Center(child: Text('Page not found: ${state.uri}'))),
   );
 });
