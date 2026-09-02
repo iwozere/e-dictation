@@ -136,6 +136,12 @@ class _CardPracticeScreenState extends ConsumerState<CardPracticeScreen> {
           );
         }
 
+        // Watched unconditionally (before the early return below) so this
+        // widget is already subscribed by the time the post-frame callback
+        // calls `load()` — otherwise that state change has no listener yet
+        // and the screen is stuck on the spinner forever.
+        final practice = ref.watch(cardPracticeNotifierProvider);
+
         if (_loadedDeckId != deck.id) {
           _loadedDeckId = deck.id;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -148,8 +154,6 @@ class _CardPracticeScreenState extends ConsumerState<CardPracticeScreen> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
-        final practice = ref.watch(cardPracticeNotifierProvider);
 
         return Scaffold(
           appBar: AppBar(
