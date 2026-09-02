@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/scoring/scoring.dart' show ScoringMode;
 import '../../../../core/theme/app_theme.dart';
@@ -14,10 +13,11 @@ import '../providers/cards_provider.dart';
 
 /// Student flashcard practice, opened via share link (`/c/:code`).
 ///
-/// The student first picks which of the deck's two languages is their own
-/// ("native") — persisted locally per deck so returning students skip the
-/// prompt — then practices with a free choice of direction (see
-/// docs/cr-card-decks-language-flashcards.md).
+/// The student picks which of the deck's two languages is their own
+/// ("native") every time this screen loads — deliberately **not** persisted,
+/// so a shared device or a new lesson always starts with a fresh choice
+/// rather than silently reusing whoever picked last — then practices with a
+/// free choice of direction (see docs/cr-card-decks-language-flashcards.md).
 class CardPracticeScreen extends ConsumerStatefulWidget {
   const CardPracticeScreen({super.key, required this.shareCode});
   final String shareCode;
@@ -30,16 +30,7 @@ class _CardPracticeScreenState extends ConsumerState<CardPracticeScreen> {
   bool _signingIn = false;
   String? _loadedDeckId;
   CardSide? _nativeSide;
-  bool _prefsLoaded = false;
   final _answerCtrl = TextEditingController();
-
-  String get _prefsKey => 'card_native_side_${widget.shareCode}';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadNativeSidePref();
-  }
 
   @override
   void dispose() {
@@ -47,22 +38,7 @@ class _CardPracticeScreenState extends ConsumerState<CardPracticeScreen> {
     super.dispose();
   }
 
-  Future<void> _loadNativeSidePref() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    final stored = prefs.getString(_prefsKey);
-    setState(() {
-      _nativeSide = stored == 'b'
-          ? CardSide.b
-          : (stored == 'a' ? CardSide.a : null);
-      _prefsLoaded = true;
-    });
-  }
-
-  Future<void> _chooseNativeSide(CardSide side) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, side == CardSide.a ? 'a' : 'b');
-    if (!mounted) return;
+  void _chooseNativeSide(CardSide side) {
     setState(() => _nativeSide = side);
   }
 
@@ -102,7 +78,7 @@ class _CardPracticeScreenState extends ConsumerState<CardPracticeScreen> {
       }
     });
 
-    if (userAsync.isLoading || !_prefsLoaded) {
+    if (userAsync.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 

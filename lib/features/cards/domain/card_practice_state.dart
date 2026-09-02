@@ -67,8 +67,10 @@ class CardPracticeState {
   /// The side the student's typed answer is graded against.
   CardSide get answerSide => promptSide.opposite;
 
-  /// Audio always plays the foreign side — see the CR doc's mode table.
-  CardSide get audioSide => foreignSide;
+  /// Audio always plays whatever the student currently has to produce — the
+  /// answer side — so it follows the mode toggle instead of being pinned to
+  /// one language for the whole session. See the CR doc's mode table.
+  CardSide get audioSide => answerSide;
 
   String? get promptText => currentCard?.textFor(promptSide);
   String? get expectedAnswer => currentCard?.textFor(answerSide);

@@ -26,7 +26,7 @@ void main() {
     );
 
     test(
-      'foreignToNative with native=A shows B, expects A, still plays B audio (foreign)',
+      'foreignToNative with native=A shows B, expects A, plays A audio (the answer side)',
       () {
         final state = CardPracticeState(
           cards: [card],
@@ -36,9 +36,11 @@ void main() {
 
         expect(state.promptText, 'house');
         expect(state.expectedAnswer, 'Haus');
-        // Audio always plays the foreign side, regardless of mode — see the
-        // CR doc's mode table (docs/cr-card-decks-language-flashcards.md).
-        expect(state.promptAudioUrl, 'https://example.com/b.mp3');
+        // Audio follows the mode toggle — it always plays whatever the
+        // student currently has to produce (the answer side), not a side
+        // fixed for the whole session. See the CR doc's mode table
+        // (docs/cr-card-decks-language-flashcards.md).
+        expect(state.promptAudioUrl, 'https://example.com/a.mp3');
       },
     );
 
@@ -59,7 +61,7 @@ void main() {
 
       expect(state.promptText, 'Haus');
       expect(state.expectedAnswer, 'house');
-      expect(state.promptAudioUrl, 'https://example.com/a.mp3');
+      expect(state.promptAudioUrl, 'https://example.com/b.mp3');
     });
   });
 

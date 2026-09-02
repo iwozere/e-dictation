@@ -31,17 +31,22 @@ two columns instead of one.
 
 ## Practice modes
 
-Both modes always play the **foreign-language** audio (relative to whatever the student
-picked as native this session) — the audio is pronunciation support for whichever side is
-harder for that student. Only which text is shown, and which language the free-text answer
-is graded against, changes:
+The Play button always plays whatever language the student currently has to *produce* —
+the answer side — so it follows the mode toggle rather than being pinned to one language
+for the whole session:
 
 | Mode | Text shown | Audio played | Student types |
 |---|---|---|---|
-| Native → Foreign | native text | foreign audio | foreign text |
-| Foreign → Native | foreign text | foreign audio (same file) | native text |
+| Native → Foreign | native text | foreign audio (the answer) | foreign text |
+| Foreign → Native | foreign text | native audio (the answer) | native text |
 
-The student can switch modes freely at any point (not fixed per link/assignment).
+The student can switch modes freely at any point (not fixed per link/assignment), and the
+audio switches with it.
+
+Which language is "native" for a session is picked on a language-choice screen shown every
+time the practice screen loads — deliberately not persisted (no `localStorage`/prefs), so a
+teacher previewing a deck, or a student starting a new lesson on a shared device, always
+gets a fresh prompt instead of silently reusing whoever chose last.
 
 ## Grading
 
