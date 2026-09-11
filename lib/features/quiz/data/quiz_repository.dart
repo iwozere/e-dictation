@@ -184,6 +184,34 @@ class QuizRepository {
     }
   }
 
+  /// Updates the 4 session/timer settings a teacher can tune after creation
+  /// (CR follow-up: "make configurable per quiz"). Deliberately narrow —
+  /// only these columns, regardless of deck status — since none of them
+  /// affect cards/options/audio, unlike everything else on this table.
+  Future<QuizFailure?> updateSettings({
+    required String deckId,
+    required int? sessionLength,
+    required int timerInitialSecs,
+    required int timerDecayEveryNCards,
+    required int timerFloorSecs,
+  }) async {
+    try {
+      await _client
+          .from('quiz_decks')
+          .update({
+            'session_length': sessionLength,
+            'timer_initial_secs': timerInitialSecs,
+            'timer_decay_every_n_cards': timerDecayEveryNCards,
+            'timer_floor_secs': timerFloorSecs,
+          })
+          .eq('id', deckId);
+      return null;
+    } catch (e) {
+      _log.severe('updateSettings error: %s', e);
+      return UnknownQuizFailure(e.toString());
+    }
+  }
+
   Future<QuizFailure?> deleteDeck(String id) async {
     try {
       await _client.from('quiz_decks').delete().eq('id', id);

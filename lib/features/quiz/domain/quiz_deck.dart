@@ -134,6 +134,32 @@ class QuizDeck {
   };
 }
 
+/// Validates the 4 teacher-configurable timer/session settings (CR
+/// follow-up: "make configurable per quiz"), mirroring the DB's
+/// `quiz_decks_floor_below_initial` check constraint plus the positivity
+/// checks on each column. Returns a human-readable problem, or null if
+/// every value is valid. Shared by the create screen and the deck-detail
+/// settings dialog so the two can't drift apart.
+String? validateQuizTimerSettings({
+  required int timerInitialSecs,
+  required int timerFloorSecs,
+  required int timerDecayEveryNCards,
+}) {
+  if (timerInitialSecs <= 0) {
+    return 'Starting time must be at least 1 second.';
+  }
+  if (timerFloorSecs <= 0) {
+    return 'Minimum time must be at least 1 second.';
+  }
+  if (timerDecayEveryNCards <= 0) {
+    return 'Cards between decreases must be at least 1.';
+  }
+  if (timerFloorSecs > timerInitialSecs) {
+    return "Minimum time can't be greater than the starting time.";
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 
 enum QuizDeckStatus {

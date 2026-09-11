@@ -215,6 +215,18 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
     ).showSnackBar(const SnackBar(content: Text('Link copied!')));
   }
 
+  Future<void> _openSettingsDialog(QuizDeck deck) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => _SettingsDialog(deck: deck),
+    );
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Settings updated.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final deckAsync = ref.watch(quizDeckByIdProvider(widget.deckId));
@@ -240,6 +252,11 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
           appBar: AppBar(
             title: SelectionArea(child: Text(deck.title)),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.tune),
+                tooltip: 'Timer & session settings',
+                onPressed: () => _openSettingsDialog(deck),
+              ),
               if (deck.status == QuizDeckStatus.ready) ...[
                 IconButton(
                   icon: const Icon(Icons.bar_chart_outlined),
@@ -330,6 +347,190 @@ class _FailedView extends StatelessWidget {
   Widget build(BuildContext context) => ErrorView(
     message: deck.statusError ?? 'Something went wrong generating audio.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Settings dialog — the 4 teacher-configurable timer/session values
+// (CR follow-up: "make configurable per quiz"). Available at any deck
+// status since none of these touch cards/options/audio.
+// ---------------------------------------------------------------------------
+
+class _SettingsDialog extends ConsumerStatefulWidget {
+  const _SettingsDialog({required this.deck});
+  final QuizDeck deck;
+
+  @override
+  ConsumerState<_SettingsDialog> createState() => _SettingsDialogState();
+}
+
+class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
+  late final _sessionLengthCtrl = TextEditingController(
+    text: '${widget.deck.sessionLength ?? 20}',
+  );
+  late final _timerInitialCtrl = TextEditingController(
+    text: '${widget.deck.timerInitialSecs}',
+  );
+  late final _timerDecayEveryNCtrl = TextEditingController(
+    text: '${widget.deck.timerDecayEveryNCards}',
+  );
+  late final _timerFloorCtrl = TextEditingController(
+    text: '${widget.deck.timerFloorSecs}',
+  );
+  late bool _wholeDeckSession = widget.deck.sessionLength == null;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _sessionLengthCtrl.dispose();
+    _timerInitialCtrl.dispose();
+    _timerDecayEveryNCtrl.dispose();
+    _timerFloorCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final timerInitialSecs = int.tryParse(_timerInitialCtrl.text) ?? 10;
+    final timerFloorSecs = int.tryParse(_timerFloorCtrl.text) ?? 3;
+    final timerDecayEveryNCards = int.tryParse(_timerDecayEveryNCtrl.text) ?? 3;
+    final sessionLength = _wholeDeckSession
+        ? null
+        : int.tryParse(_sessionLengthCtrl.text) ?? 20;
+
+    if (!_wholeDeckSession && (sessionLength == null || sessionLength <= 0)) {
+      setState(() => _error = 'Cards per session must be at least 1.');
+      return;
+    }
+    final problem = validateQuizTimerSettings(
+      timerInitialSecs: timerInitialSecs,
+      timerFloorSecs: timerFloorSecs,
+      timerDecayEveryNCards: timerDecayEveryNCards,
+    );
+    if (problem != null) {
+      setState(() => _error = problem);
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    final failure = await ref
+        .read(quizDeckMutationProvider.notifier)
+        .updateSettings(
+          deckId: widget.deck.id,
+          sessionLength: sessionLength,
+          timerInitialSecs: timerInitialSecs,
+          timerDecayEveryNCards: timerDecayEveryNCards,
+          timerFloorSecs: timerFloorSecs,
+        );
+
+    if (!mounted) return;
+    if (failure != null) {
+      setState(() {
+        _saving = false;
+        _error = 'Could not save settings. Try again.';
+      });
+      return;
+    }
+    Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Timer & session settings'),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _sessionLengthCtrl,
+                    enabled: !_wholeDeckSession,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Cards per session',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Whole deck'),
+                    value: _wholeDeckSession,
+                    onChanged: (v) =>
+                        setState(() => _wholeDeckSession = v ?? false),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _timerInitialCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: 'Starting time per card (seconds)',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _timerDecayEveryNCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: 'Cards between decreases',
+                helperText: 'The timer shortens every N cards.',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _timerFloorCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: 'Minimum time (seconds)',
+                helperText: "Won't shorten past this floor.",
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(color: AppColors.error, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

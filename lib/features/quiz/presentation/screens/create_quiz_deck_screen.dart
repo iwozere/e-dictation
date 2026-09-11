@@ -10,6 +10,7 @@ import '../../../cards/presentation/providers/cards_provider.dart'
     show teacherCardDecksProvider;
 import '../../../classes/presentation/providers/classes_provider.dart';
 import '../../../dictations/domain/dictation.dart' show DictationLanguage;
+import '../../domain/quiz_deck.dart' show validateQuizTimerSettings;
 import '../providers/quiz_provider.dart';
 
 enum _CreationMethod { blank, fromCardDeck }
@@ -30,6 +31,8 @@ class _CreateQuizDeckScreenState extends ConsumerState<CreateQuizDeckScreen> {
   final _titleCtrl = TextEditingController();
   final _sessionLengthCtrl = TextEditingController(text: '20');
   final _timerInitialCtrl = TextEditingController(text: '10');
+  final _timerDecayEveryNCtrl = TextEditingController(text: '3');
+  final _timerFloorCtrl = TextEditingController(text: '3');
   final _livesCountCtrl = TextEditingController(text: '3');
 
   DictationLanguage _languageA = DictationLanguage.german;
@@ -46,6 +49,8 @@ class _CreateQuizDeckScreenState extends ConsumerState<CreateQuizDeckScreen> {
     _titleCtrl.dispose();
     _sessionLengthCtrl.dispose();
     _timerInitialCtrl.dispose();
+    _timerDecayEveryNCtrl.dispose();
+    _timerFloorCtrl.dispose();
     _livesCountCtrl.dispose();
     super.dispose();
   }
@@ -65,6 +70,21 @@ class _CreateQuizDeckScreenState extends ConsumerState<CreateQuizDeckScreen> {
       return;
     }
 
+    final timerInitialSecs = int.tryParse(_timerInitialCtrl.text) ?? 10;
+    final timerFloorSecs = int.tryParse(_timerFloorCtrl.text) ?? 3;
+    final timerDecayEveryNCards = int.tryParse(_timerDecayEveryNCtrl.text) ?? 3;
+    final settingsProblem = validateQuizTimerSettings(
+      timerInitialSecs: timerInitialSecs,
+      timerFloorSecs: timerFloorSecs,
+      timerDecayEveryNCards: timerDecayEveryNCards,
+    );
+    if (settingsProblem != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(settingsProblem)));
+      return;
+    }
+
     setState(() => _saving = true);
 
     final (deck, createFailure) = await ref
@@ -77,7 +97,9 @@ class _CreateQuizDeckScreenState extends ConsumerState<CreateQuizDeckScreen> {
           sessionLength: _wholeDeckSession
               ? null
               : int.tryParse(_sessionLengthCtrl.text) ?? 20,
-          timerInitialSecs: int.tryParse(_timerInitialCtrl.text) ?? 10,
+          timerInitialSecs: timerInitialSecs,
+          timerDecayEveryNCards: timerDecayEveryNCards,
+          timerFloorSecs: timerFloorSecs,
           livesEnabled: _livesEnabled,
           livesCount: int.tryParse(_livesCountCtrl.text) ?? 3,
         );
@@ -352,9 +374,39 @@ class _CreateQuizDeckScreenState extends ConsumerState<CreateQuizDeckScreen> {
                         ],
                         decoration: const InputDecoration(
                           labelText: 'Starting time per card (seconds)',
-                          helperText:
-                              'Shortens as the session goes on, down to a 3s floor.',
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _timerDecayEveryNCtrl,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'Cards between decreases',
+                                helperText: 'The timer shortens every N cards.',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _timerFloorCtrl,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'Minimum time (seconds)',
+                                helperText: "Won't shorten past this floor.",
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       Row(

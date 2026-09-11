@@ -2,6 +2,8 @@ import 'package:e_dictation/features/dictations/domain/dictation.dart'
     show DictationLanguage;
 import 'package:e_dictation/features/quiz/domain/quiz_attempt.dart';
 import 'package:e_dictation/features/quiz/domain/quiz_card.dart';
+import 'package:e_dictation/features/quiz/domain/quiz_deck.dart'
+    show validateQuizTimerSettings;
 import 'package:e_dictation/features/quiz/domain/quiz_practice_deck.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -80,6 +82,39 @@ void main() {
     test('flips a to b and back', () {
       expect(QuizSide.a.opposite, QuizSide.b);
       expect(QuizSide.b.opposite, QuizSide.a);
+    });
+  });
+
+  group('validateQuizTimerSettings', () {
+    String? call({int initial = 10, int floor = 3, int decayEvery = 3}) =>
+        validateQuizTimerSettings(
+          timerInitialSecs: initial,
+          timerFloorSecs: floor,
+          timerDecayEveryNCards: decayEvery,
+        );
+
+    test('accepts the current defaults', () {
+      expect(call(), isNull);
+    });
+
+    test('rejects a non-positive starting time', () {
+      expect(call(initial: 0), isNotNull);
+    });
+
+    test('rejects a non-positive floor', () {
+      expect(call(floor: 0), isNotNull);
+    });
+
+    test('rejects a non-positive decay-every-N', () {
+      expect(call(decayEvery: 0), isNotNull);
+    });
+
+    test('rejects a floor above the starting time', () {
+      expect(call(initial: 5, floor: 10), isNotNull);
+    });
+
+    test('allows the floor to equal the starting time', () {
+      expect(call(initial: 5, floor: 5), isNull);
     });
   });
 

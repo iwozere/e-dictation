@@ -135,6 +135,33 @@ class QuizDeckMutationNotifier extends Notifier<AsyncValue<void>> {
     ref.invalidate(teacherQuizDecksProvider);
     return failure;
   }
+
+  /// Updates the 4 session/timer settings; safe at any deck status since
+  /// none of them touch cards/options/audio.
+  Future<QuizFailure?> updateSettings({
+    required String deckId,
+    required int? sessionLength,
+    required int timerInitialSecs,
+    required int timerDecayEveryNCards,
+    required int timerFloorSecs,
+  }) async {
+    state = const AsyncLoading();
+    final failure = await ref
+        .read(quizRepositoryProvider)
+        .updateSettings(
+          deckId: deckId,
+          sessionLength: sessionLength,
+          timerInitialSecs: timerInitialSecs,
+          timerDecayEveryNCards: timerDecayEveryNCards,
+          timerFloorSecs: timerFloorSecs,
+        );
+    state = const AsyncData(null);
+    if (failure == null) {
+      ref.invalidate(quizDeckByIdProvider(deckId));
+      ref.invalidate(teacherQuizDecksProvider);
+    }
+    return failure;
+  }
 }
 
 final quizDeckMutationProvider =
