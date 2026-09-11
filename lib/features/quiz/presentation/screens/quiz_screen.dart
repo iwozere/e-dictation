@@ -35,7 +35,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   String? _studentName;
   String? _studentPinHash;
   QuizDirection? _direction;
-  String? _loadedSessionKey;
 
   Future<void> _ensureAnonymousSession() async {
     if (_signingIn) return;
@@ -105,8 +104,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           direction: _direction!,
           studentName: _studentName,
           studentPinHash: _studentPinHash,
-          loadedSessionKey: _loadedSessionKey,
-          onSessionKeyLoaded: (key) => _loadedSessionKey = key,
         );
       },
     );
@@ -303,27 +300,35 @@ class _DirectionChoicePanel extends StatelessWidget {
 // then renders the running session or its summary.
 // ---------------------------------------------------------------------------
 
-class _QuizSession extends ConsumerWidget {
+class _QuizSession extends ConsumerStatefulWidget {
   const _QuizSession({
     required this.shareCode,
     required this.direction,
     required this.studentName,
     required this.studentPinHash,
-    required this.loadedSessionKey,
-    required this.onSessionKeyLoaded,
   });
 
   final String shareCode;
   final QuizDirection direction;
   final String? studentName;
   final String? studentPinHash;
-  final String? loadedSessionKey;
-  final void Function(String key) onSessionKeyLoaded;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_QuizSession> createState() => _QuizSessionState();
+}
+
+class _QuizSessionState extends ConsumerState<_QuizSession> {
+  // Lives on the State, not the (immutable) widget: a Riverpod-triggered
+  // rebuild of this widget reuses the same State object but does NOT hand
+  // it a new widget config, so a guard stored on the widget itself would
+  // never observe its own update and load() would fire every rebuild —
+  // see CardPracticeScreen's `_loadedDeckId` for the same pattern.
+  String? _loadedSessionKey;
+
+  @override
+  Widget build(BuildContext context) {
     final deckAsync = ref.watch(
-      quizPracticeDeckProvider((shareCode, direction)),
+      quizPracticeDeckProvider((widget.shareCode, widget.direction)),
     );
 
     return deckAsync.when(
@@ -338,17 +343,18 @@ class _QuizSession extends ConsumerWidget {
         // subscribed by the time the post-frame callback calls load().
         final session = ref.watch(quizSessionNotifierProvider);
 
-        final sessionKey = direction.value;
-        if (loadedSessionKey != sessionKey) {
-          onSessionKeyLoaded(sessionKey);
+        final sessionKey = widget.direction.value;
+        if (_loadedSessionKey != sessionKey) {
+          _loadedSessionKey = sessionKey;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
             ref
                 .read(quizSessionNotifierProvider.notifier)
                 .load(
                   deck: deck,
-                  direction: direction,
-                  studentName: studentName,
-                  studentPinHash: studentPinHash,
+                  direction: widget.direction,
+                  studentName: widget.studentName,
+                  studentPinHash: widget.studentPinHash,
                 );
           });
           return const Scaffold(
