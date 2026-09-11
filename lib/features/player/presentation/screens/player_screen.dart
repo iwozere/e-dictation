@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/page_title.dart';
 import '../../../../core/utils/pin_hash.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../../../attempts/presentation/providers/attempts_provider.dart';
@@ -172,6 +173,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Teacher preview (dictationId) is already inside TeacherShell, which
+    // sets its own title — only the student share-link view renames the tab.
+    if (_isStudentView) setPageTitle(_studentName ?? 'Student');
+
     final userAsync = ref.watch(authStateProvider);
 
     // Must be called unconditionally before any early returns.

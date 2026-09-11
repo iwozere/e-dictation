@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/page_title.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 
 /// Persistent shell wrapping teacher-side screens.
@@ -57,6 +58,7 @@ class TeacherShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    setPageTitle('Teacher mode');
     final currentIndex = _currentIndex(context);
     final isWide = MediaQuery.of(context).size.width > 700;
 

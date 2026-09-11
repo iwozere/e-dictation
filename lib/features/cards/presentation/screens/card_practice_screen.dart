@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/scoring/scoring.dart' show ScoringMode;
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/page_title.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/card_deck.dart';
@@ -69,6 +70,9 @@ class _CardPracticeScreenState extends ConsumerState<CardPracticeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // No name collection on this feature (results aren't persisted per
+    // student here, unlike quiz/dictation) — just "Student" for the tab.
+    setPageTitle('Student');
     final userAsync = ref.watch(authStateProvider);
 
     ref.listen<CardPracticeState>(cardPracticeNotifierProvider, (prev, next) {

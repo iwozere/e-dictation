@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/page_title.dart';
 import '../../../../core/utils/pin_hash.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -53,6 +54,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    setPageTitle(_studentName ?? 'Student');
     final userAsync = ref.watch(authStateProvider);
 
     if (userAsync.isLoading) {
