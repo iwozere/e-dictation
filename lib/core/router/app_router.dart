@@ -22,6 +22,11 @@ import '../../features/cards/presentation/screens/card_decks_list_screen.dart';
 import '../../features/cards/presentation/screens/card_practice_screen.dart';
 import '../../features/cards/presentation/screens/create_card_deck_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
+import '../../features/quiz/presentation/screens/create_quiz_deck_screen.dart';
+import '../../features/quiz/presentation/screens/quiz_deck_detail_screen.dart';
+import '../../features/quiz/presentation/screens/quiz_decks_list_screen.dart';
+import '../../features/quiz/presentation/screens/quiz_results_screen.dart';
+import '../../features/quiz/presentation/screens/quiz_screen.dart';
 import '../../shared/widgets/teacher_shell.dart';
 
 // ---------------------------------------------------------------------------
@@ -44,6 +49,15 @@ abstract final class AppRoute {
 
   /// Public student practice route — opened by students via share link.
   static const cardPracticeByCode = '/c/:code';
+
+  /// Teacher's quiz decks (timed multiple-choice) list.
+  static const quizDecks = '/teacher/quiz';
+  static const createQuizDeck = '/teacher/quiz/new';
+  static const quizDeckDetail = '/teacher/quiz/:id';
+  static const quizResults = '/teacher/quiz/:id/results';
+
+  /// Public student quiz route — opened by students via share link.
+  static const quizByCode = '/q/:code';
 
   /// Teacher-wide results overview across all dictations.
   static const resultsOverview = '/teacher/results';
@@ -113,6 +127,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isPublicRoute =
           path.startsWith('/d/') ||
           path.startsWith('/c/') ||
+          path.startsWith('/q/') ||
           path == AppRoute.studentHistory ||
           path == AppRoute.signIn ||
           path == AppRoute.signUp ||
@@ -155,6 +170,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final code = state.pathParameters['code']!;
           return CardPracticeScreen(shareCode: code);
+        },
+      ),
+
+      // ------------------------------------------------------------------
+      // Public quiz practice (anonymous student access via share code)
+      // ------------------------------------------------------------------
+      GoRoute(
+        path: AppRoute.quizByCode,
+        builder: (_, state) {
+          final code = state.pathParameters['code']!;
+          return QuizScreen(shareCode: code);
         },
       ),
 
@@ -253,6 +279,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   final id = state.pathParameters['id']!;
                   return CardDeckDetailScreen(deckId: id);
                 },
+              ),
+            ],
+          ),
+
+          // ---- Quiz tab ----
+          GoRoute(
+            path: AppRoute.quizDecks,
+            builder: (_, _) => const QuizDecksListScreen(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                builder: (_, _) => const CreateQuizDeckScreen(),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) {
+                  final id = state.pathParameters['id']!;
+                  return QuizDeckDetailScreen(deckId: id);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'results',
+                    builder: (_, state) {
+                      final id = state.pathParameters['id']!;
+                      return QuizResultsScreen(deckId: id);
+                    },
+                  ),
+                ],
               ),
             ],
           ),

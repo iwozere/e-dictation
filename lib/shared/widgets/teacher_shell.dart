@@ -27,6 +27,12 @@ class TeacherShell extends ConsumerWidget {
       route: AppRoute.cardDecks,
     ),
     _Tab(
+      icon: Icons.bolt_outlined,
+      activeIcon: Icons.bolt,
+      label: 'Quiz',
+      route: AppRoute.quizDecks,
+    ),
+    _Tab(
       icon: Icons.group_outlined,
       activeIcon: Icons.group,
       label: 'Classes',
@@ -43,8 +49,9 @@ class TeacherShell extends ConsumerWidget {
   int _currentIndex(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
     if (path.startsWith('/teacher/cards')) return 1;
-    if (path.startsWith('/teacher/classes')) return 2;
-    if (path.startsWith('/teacher/results/all')) return 3;
+    if (path.startsWith('/teacher/quiz')) return 2;
+    if (path.startsWith('/teacher/classes')) return 3;
+    if (path.startsWith('/teacher/results/all')) return 4;
     return 0;
   }
 
