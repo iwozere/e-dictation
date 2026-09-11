@@ -78,6 +78,19 @@ final quizAttemptsProvider = FutureProvider.autoDispose
       return attempts ?? [];
     });
 
+/// Every quiz attempt across all of the teacher's decks — powers the
+/// "Quizzes" tab on the teacher-wide results screen (mirrors
+/// `allAttemptsProvider` for dictations).
+final allQuizAttemptsProvider = FutureProvider.autoDispose((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return <QuizAttempt>[];
+
+  final repo = ref.watch(quizRepositoryProvider);
+  final (attempts, failure) = await repo.fetchAllAttempts(user.id);
+  if (failure != null) throw failure;
+  return attempts ?? [];
+});
+
 // ---------------------------------------------------------------------------
 // Create / delete notifier
 // ---------------------------------------------------------------------------
@@ -136,14 +149,16 @@ class QuizDeckMutationNotifier extends Notifier<AsyncValue<void>> {
     return failure;
   }
 
-  /// Updates the 4 session/timer settings; safe at any deck status since
-  /// none of them touch cards/options/audio.
+  /// Updates the session/timer/lives settings; safe at any deck status
+  /// since none of them touch cards/options/audio.
   Future<QuizFailure?> updateSettings({
     required String deckId,
     required int? sessionLength,
     required int timerInitialSecs,
     required int timerDecayEveryNCards,
     required int timerFloorSecs,
+    required bool livesEnabled,
+    required int livesCount,
   }) async {
     state = const AsyncLoading();
     final failure = await ref
@@ -154,10 +169,35 @@ class QuizDeckMutationNotifier extends Notifier<AsyncValue<void>> {
           timerInitialSecs: timerInitialSecs,
           timerDecayEveryNCards: timerDecayEveryNCards,
           timerFloorSecs: timerFloorSecs,
+          livesEnabled: livesEnabled,
+          livesCount: livesCount,
         );
     state = const AsyncData(null);
     if (failure == null) {
       ref.invalidate(quizDeckByIdProvider(deckId));
+      ref.invalidate(teacherQuizDecksProvider);
+    }
+    return failure;
+  }
+
+  /// Updates title/language, called from the card editor's save flow (see
+  /// `QuizRepository.updateDeckInfo` for why it's separate from the settings
+  /// dialog above).
+  Future<QuizFailure?> updateDeckInfo({
+    required String deckId,
+    required String title,
+    required DictationLanguage languageA,
+    required DictationLanguage languageB,
+  }) async {
+    final failure = await ref
+        .read(quizRepositoryProvider)
+        .updateDeckInfo(
+          deckId: deckId,
+          title: title,
+          languageA: languageA,
+          languageB: languageB,
+        );
+    if (failure == null) {
       ref.invalidate(teacherQuizDecksProvider);
     }
     return failure;

@@ -184,16 +184,18 @@ class QuizRepository {
     }
   }
 
-  /// Updates the 4 session/timer settings a teacher can tune after creation
-  /// (CR follow-up: "make configurable per quiz"). Deliberately narrow —
-  /// only these columns, regardless of deck status — since none of them
-  /// affect cards/options/audio, unlike everything else on this table.
+  /// Updates the session/timer/lives settings a teacher can tune after
+  /// creation (CR follow-up: "make configurable per quiz"). Deliberately
+  /// narrow — only these columns, regardless of deck status — since none of
+  /// them affect cards/options/audio, unlike title/language below.
   Future<QuizFailure?> updateSettings({
     required String deckId,
     required int? sessionLength,
     required int timerInitialSecs,
     required int timerDecayEveryNCards,
     required int timerFloorSecs,
+    required bool livesEnabled,
+    required int livesCount,
   }) async {
     try {
       await _client
@@ -203,11 +205,40 @@ class QuizRepository {
             'timer_initial_secs': timerInitialSecs,
             'timer_decay_every_n_cards': timerDecayEveryNCards,
             'timer_floor_secs': timerFloorSecs,
+            'lives_enabled': livesEnabled,
+            'lives_count': livesCount,
           })
           .eq('id', deckId);
       return null;
     } catch (e) {
       _log.severe('updateSettings error: %s', e);
+      return UnknownQuizFailure(e.toString());
+    }
+  }
+
+  /// Updates title/language — bundled with the card editor's "Save &
+  /// generate audio" flow (not the settings dialog above) because the
+  /// language pair picks the TTS voice per side (see `generate_quiz_audio`),
+  /// so any existing audio is stale the moment the language changes and
+  /// must be regenerated alongside it.
+  Future<QuizFailure?> updateDeckInfo({
+    required String deckId,
+    required String title,
+    required DictationLanguage languageA,
+    required DictationLanguage languageB,
+  }) async {
+    try {
+      await _client
+          .from('quiz_decks')
+          .update({
+            'title': title,
+            'language_a': languageA.code,
+            'language_b': languageB.code,
+          })
+          .eq('id', deckId);
+      return null;
+    } catch (e) {
+      _log.severe('updateDeckInfo error: %s', e);
       return UnknownQuizFailure(e.toString());
     }
   }
@@ -468,6 +499,34 @@ class QuizRepository {
       );
     } catch (e) {
       _log.severe('fetchAttempts error: %s', e);
+      return (null, UnknownQuizFailure(e.toString()));
+    }
+  }
+
+  /// Fetches every quiz attempt across all decks owned by [ownerId], newest
+  /// first, with each deck's title embedded — mirrors
+  /// `AttemptsRepository.listAllAttempts`. RLS ("quiz_attempts: teacher
+  /// select") restricts the result to the teacher's own decks; the `!inner`
+  /// join additionally drops any orphaned rows.
+  Future<(List<QuizAttempt>?, QuizFailure?)> fetchAllAttempts(
+    String ownerId,
+  ) async {
+    try {
+      final rows =
+          await _client
+                  .from('quiz_attempts')
+                  .select('*, quiz_decks!inner(id, title, owner_id)')
+                  .eq('quiz_decks.owner_id', ownerId)
+                  .order('submitted_at', ascending: false)
+              as List<dynamic>;
+      return (
+        rows
+            .map((r) => QuizAttempt.fromJson(r as Map<String, dynamic>))
+            .toList(),
+        null,
+      );
+    } catch (e) {
+      _log.severe('fetchAllAttempts error: %s', e);
       return (null, UnknownQuizFailure(e.toString()));
     }
   }

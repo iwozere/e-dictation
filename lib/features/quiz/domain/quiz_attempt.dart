@@ -72,6 +72,7 @@ class QuizAttempt {
   const QuizAttempt({
     required this.id,
     required this.deckId,
+    this.deckTitle,
     this.studentName,
     this.studentPinHash,
     required this.direction,
@@ -87,6 +88,11 @@ class QuizAttempt {
 
   final String id;
   final String deckId;
+
+  /// Only populated by queries that join `quiz_decks` (the teacher-wide
+  /// "all quiz attempts" list) — null for the single-deck results screen,
+  /// which already knows the deck it's showing.
+  final String? deckTitle;
   final String? studentName;
   final String? studentPinHash;
   final QuizDirection direction;
@@ -108,6 +114,8 @@ class QuizAttempt {
   factory QuizAttempt.fromJson(Map<String, dynamic> json) => QuizAttempt(
     id: json['id'] as String,
     deckId: json['deck_id'] as String,
+    deckTitle:
+        (json['quiz_decks'] as Map<String, dynamic>?)?['title'] as String?,
     studentName: json['student_name'] as String?,
     studentPinHash: json['student_pin_hash'] as String?,
     direction: QuizDirection.fromString(json['direction'] as String),

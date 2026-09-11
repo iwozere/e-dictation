@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/error_view.dart';
+import '../../../dictations/domain/dictation.dart' show DictationLanguage;
 import '../../domain/quiz_card.dart';
 import '../../domain/quiz_deck.dart';
 import '../providers/quiz_provider.dart';
@@ -31,6 +32,10 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
   Timer? _pollTimer;
   List<String> _loadedOptionIds = const [];
   final Map<String, TextEditingController> _optionCtrls = {};
+  final _titleCtrl = TextEditingController();
+  DictationLanguage? _editLanguageA;
+  DictationLanguage? _editLanguageB;
+  String? _infoLoadedForDeckId;
   bool _editing = false;
   bool _busy = false;
 
@@ -40,7 +45,20 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
     for (final c in _optionCtrls.values) {
       c.dispose();
     }
+    _titleCtrl.dispose();
     super.dispose();
+  }
+
+  /// Loads title/language into editable state once per deck id — like
+  /// [_syncControllers], this deliberately does NOT re-run on every refetch
+  /// so it doesn't clobber in-progress edits (e.g. after the settings
+  /// dialog invalidates the provider).
+  void _syncDeckInfo(QuizDeck deck) {
+    if (_infoLoadedForDeckId == deck.id) return;
+    _infoLoadedForDeckId = deck.id;
+    _titleCtrl.text = deck.title;
+    _editLanguageA = deck.languageA;
+    _editLanguageB = deck.languageB;
   }
 
   void _syncControllers(List<QuizCard> cards) {
@@ -173,6 +191,17 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
   }
 
   Future<void> _saveAndGenerate(QuizDeck deck) async {
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) {
+      _showError('Title is required.');
+      return;
+    }
+    final languageA = _editLanguageA ?? deck.languageA;
+    final languageB = _editLanguageB ?? deck.languageB;
+    if (languageA == languageB) {
+      _showError('Pick two different languages.');
+      return;
+    }
     final problem = _validate(deck);
     if (problem != null) {
       _showError(problem);
@@ -180,6 +209,19 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
     }
 
     setState(() => _busy = true);
+
+    if (title != deck.title ||
+        languageA != deck.languageA ||
+        languageB != deck.languageB) {
+      await ref
+          .read(quizDeckMutationProvider.notifier)
+          .updateDeckInfo(
+            deckId: deck.id,
+            title: title,
+            languageA: languageA,
+            languageB: languageB,
+          );
+    }
 
     for (final card in deck.cards) {
       for (final option in [...card.optionsA, ...card.optionsB]) {
@@ -204,6 +246,7 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
       _showError('Could not generate audio. Try again.');
     }
     ref.invalidate(quizDeckByIdProvider(widget.deckId));
+    ref.invalidate(teacherQuizDecksProvider);
   }
 
   void _copyLink(String shareCode) {
@@ -247,6 +290,7 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
       ),
       data: (deck) {
         _syncControllers(deck.cards);
+        _syncDeckInfo(deck);
 
         return Scaffold(
           appBar: AppBar(
@@ -254,7 +298,7 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.tune),
-                tooltip: 'Timer & session settings',
+                tooltip: 'Timer, lives & session settings',
                 onPressed: () => _openSettingsDialog(deck),
               ),
               if (deck.status == QuizDeckStatus.ready) ...[
@@ -285,6 +329,11 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
             QuizDeckStatus.draft => _ReviewView(
               deck: deck,
               optionCtrls: _optionCtrls,
+              titleCtrl: _titleCtrl,
+              languageA: _editLanguageA ?? deck.languageA,
+              languageB: _editLanguageB ?? deck.languageB,
+              onLanguageAChanged: (v) => setState(() => _editLanguageA = v),
+              onLanguageBChanged: (v) => setState(() => _editLanguageB = v),
               busy: _busy,
               onAddCard: () => _addCard(deck),
               onDeleteCard: _deleteCard,
@@ -298,6 +347,13 @@ class _QuizDeckDetailScreenState extends ConsumerState<QuizDeckDetailScreen> {
                   ? _ReviewView(
                       deck: deck,
                       optionCtrls: _optionCtrls,
+                      titleCtrl: _titleCtrl,
+                      languageA: _editLanguageA ?? deck.languageA,
+                      languageB: _editLanguageB ?? deck.languageB,
+                      onLanguageAChanged: (v) =>
+                          setState(() => _editLanguageA = v),
+                      onLanguageBChanged: (v) =>
+                          setState(() => _editLanguageB = v),
                       busy: _busy,
                       onAddCard: () => _addCard(deck),
                       onDeleteCard: _deleteCard,
@@ -376,7 +432,11 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
   late final _timerFloorCtrl = TextEditingController(
     text: '${widget.deck.timerFloorSecs}',
   );
+  late final _livesCountCtrl = TextEditingController(
+    text: '${widget.deck.livesCount}',
+  );
   late bool _wholeDeckSession = widget.deck.sessionLength == null;
+  late bool _livesEnabled = widget.deck.livesEnabled;
   bool _saving = false;
   String? _error;
 
@@ -386,6 +446,7 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
     _timerInitialCtrl.dispose();
     _timerDecayEveryNCtrl.dispose();
     _timerFloorCtrl.dispose();
+    _livesCountCtrl.dispose();
     super.dispose();
   }
 
@@ -424,6 +485,8 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
           timerInitialSecs: timerInitialSecs,
           timerDecayEveryNCards: timerDecayEveryNCards,
           timerFloorSecs: timerFloorSecs,
+          livesEnabled: _livesEnabled,
+          livesCount: int.tryParse(_livesCountCtrl.text) ?? 3,
         );
 
     if (!mounted) return;
@@ -440,7 +503,7 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Timer & session settings'),
+      title: const Text('Timer, lives & session settings'),
       content: SizedBox(
         width: 360,
         child: Column(
@@ -454,9 +517,7 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
                     controller: _sessionLengthCtrl,
                     enabled: !_wholeDeckSession,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(
                       labelText: 'Cards per session',
                     ),
@@ -502,6 +563,32 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
                 labelText: 'Minimum time (seconds)',
                 helperText: "Won't shorten past this floor.",
               ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Lives'),
+                    subtitle: const Text(
+                      'End the session early after too many misses',
+                    ),
+                    value: _livesEnabled,
+                    onChanged: (v) => setState(() => _livesEnabled = v),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _livesCountCtrl,
+                    enabled: _livesEnabled,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(labelText: 'Lives'),
+                  ),
+                ),
+              ],
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -652,6 +739,11 @@ class _ReviewView extends StatelessWidget {
   const _ReviewView({
     required this.deck,
     required this.optionCtrls,
+    required this.titleCtrl,
+    required this.languageA,
+    required this.languageB,
+    required this.onLanguageAChanged,
+    required this.onLanguageBChanged,
     required this.busy,
     required this.onAddCard,
     required this.onDeleteCard,
@@ -663,6 +755,11 @@ class _ReviewView extends StatelessWidget {
 
   final QuizDeck deck;
   final Map<String, TextEditingController> optionCtrls;
+  final TextEditingController titleCtrl;
+  final DictationLanguage languageA;
+  final DictationLanguage languageB;
+  final ValueChanged<DictationLanguage?> onLanguageAChanged;
+  final ValueChanged<DictationLanguage?> onLanguageBChanged;
   final bool busy;
   final VoidCallback onAddCard;
   final void Function(QuizCard card) onDeleteCard;
@@ -678,11 +775,62 @@ class _ReviewView extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Text(
-            'Each side needs one correct answer plus 2 or more wrong '
-            'variants — every one of them gets pronounced when clicked, so '
-            'fill them all in before generating audio.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<DictationLanguage>(
+                      initialValue: languageA,
+                      decoration: const InputDecoration(
+                        labelText: 'Language A',
+                      ),
+                      items: DictationLanguage.values
+                          .map(
+                            (l) => DropdownMenuItem(
+                              value: l,
+                              child: Text(l.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: onLanguageAChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: DropdownButtonFormField<DictationLanguage>(
+                      initialValue: languageB,
+                      decoration: const InputDecoration(
+                        labelText: 'Language B',
+                      ),
+                      items: DictationLanguage.values
+                          .map(
+                            (l) => DropdownMenuItem(
+                              value: l,
+                              child: Text(l.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: onLanguageBChanged,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Each side needs one correct answer plus 2 or more wrong '
+                'variants — every one of them gets pronounced when clicked, '
+                'so fill them all in before generating audio. Changing a '
+                'language regenerates audio for every option on save.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -690,7 +838,8 @@ class _ReviewView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             itemCount: deck.cards.length,
             itemBuilder: (_, i) => _CardEditor(
-              deck: deck,
+              languageALabel: languageA.label,
+              languageBLabel: languageB.label,
               card: deck.cards[i],
               optionCtrls: optionCtrls,
               onDeleteCard: onDeleteCard,
@@ -738,7 +887,8 @@ class _ReviewView extends StatelessWidget {
 
 class _CardEditor extends StatelessWidget {
   const _CardEditor({
-    required this.deck,
+    required this.languageALabel,
+    required this.languageBLabel,
     required this.card,
     required this.optionCtrls,
     required this.onDeleteCard,
@@ -747,7 +897,8 @@ class _CardEditor extends StatelessWidget {
     required this.onSetCorrect,
   });
 
-  final QuizDeck deck;
+  final String languageALabel;
+  final String languageBLabel;
   final QuizCard card;
   final Map<String, TextEditingController> optionCtrls;
   final void Function(QuizCard card) onDeleteCard;
@@ -784,7 +935,7 @@ class _CardEditor extends StatelessWidget {
               ],
             ),
             _SideEditor(
-              label: deck.languageA.label,
+              label: languageALabel,
               card: card,
               side: QuizSide.a,
               optionCtrls: optionCtrls,
@@ -794,7 +945,7 @@ class _CardEditor extends StatelessWidget {
             ),
             const Divider(),
             _SideEditor(
-              label: deck.languageB.label,
+              label: languageBLabel,
               card: card,
               side: QuizSide.b,
               optionCtrls: optionCtrls,
