@@ -45,6 +45,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   // Student typing
   final _answerCtrl = TextEditingController();
+  final _answerFocus = FocusNode();
   final Map<int, String> _answers = {};
   bool _showResults = false;
   bool _savingAttempt = false;
@@ -74,6 +75,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void dispose() {
     _answerCtrl.dispose();
+    _answerFocus.dispose();
     super.dispose();
   }
 
@@ -138,6 +140,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // The index-change listener saves the current draft and restores the
       // next sentence's answer into the textbox.
       ref.read(playbackNotifierProvider.notifier).next();
+      // Keep the cursor in the textbox so the student can type the next
+      // sentence straight away (also after clicking "Next →").
+      _answerFocus.requestFocus();
     }
   }
 
@@ -296,6 +301,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   dictation.sentences.isNotEmpty)
                 _TypingPanel(
                   controller: _answerCtrl,
+                  focusNode: _answerFocus,
                   currentIndex: playback.currentIndex,
                   totalCount: playback.sentences.length,
                   onSubmit: () => _submitAnswer(playback),
@@ -533,12 +539,14 @@ class _IdentityPanelState extends State<_IdentityPanel> {
 class _TypingPanel extends StatelessWidget {
   const _TypingPanel({
     required this.controller,
+    required this.focusNode,
     required this.currentIndex,
     required this.totalCount,
     required this.onSubmit,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final int currentIndex;
   final int totalCount;
   final VoidCallback onSubmit;
@@ -555,6 +563,7 @@ class _TypingPanel extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
+                focusNode: focusNode,
                 decoration: InputDecoration(
                   hintText: 'Type sentence ${currentIndex + 1} of $totalCount…',
                   border: const OutlineInputBorder(),
@@ -567,6 +576,9 @@ class _TypingPanel extends StatelessWidget {
                 textInputAction: isLast
                     ? TextInputAction.done
                     : TextInputAction.next,
+                // Overrides the default `next` behaviour, which would move
+                // focus to the "Next →" button on Enter.
+                onEditingComplete: () {},
                 onSubmitted: (_) => onSubmit(),
               ),
             ),
